@@ -179,11 +179,11 @@ const EN={
   bomber:{hp:45,speed:95,reward:14,atk:0,r:14,col:'#c8402a'}  // бежит к двери и взрывается
 };
 const GUNY=330,HOME_Y=750,GUARD=150,TSPD=130,HOLD=3,AGGRO=150;
-const tmax=u=>u.w>0?240:170;
+const tmax=u=>u.id==='hero'?100:u.id==='bor'?120:u.w>0?240:170; // здоровье бойца
 // первые волны учат прицельному удару: по одной новой задаче на волну
 const WTIP=['Две матерые крысы. Кнопка камня - прицельный бросок: выбери цель, потом зону. Ноги - замедлить.',
   'Крысы и рейдер-разведчик. У рейдера пистолет - сними его.',
-  'Стрелок встает вдали и прижимает бойцов. Бросок по рукам - он замолчит.',
+  'Стрелок встает вдали и бьет по бойцам на стене. Выстрел по рукам - он замолчит.',
   'Подрывник бежит к двери. Попади по рукам - взорвется на месте.'];
 // зоны прицельного удара: [ключ, подпись, базовый шанс, множитель урона]
 const ZONES=[['head','ГОЛОВА',55,2.5],['arms','РУКИ',70,.7],['body','КОРПУС',95,1],['legs','НОГИ',75,.7]];
@@ -215,7 +215,7 @@ function aimTap(p){const u=S.units.hero,A=S.aim;
 const WAVES=[
   [['rat',2,4,{hp:3}]], // 4-й элемент: hp - множитель здоровья, drop - номер оружия Раста, которое падает с врага
   [['rat',2,3,{hp:2}],['raider',1,1,{drop:3}]],
-  [['raider',2,2.5],['gunner',1,1],['rat',3,1],['raider',1,1]],
+  [['raider',2,7],['rat',2,5],['gunner',1,6],['raider',1,1]],
   [['rat',5,.8],['raider',4,1.5],['bomber',2,2.5]],
   [['brute',1,2],['raider',5,1.3],['gunner',2,2]],
   [['rat',10,.6],['bomber',3,2]],
@@ -260,10 +260,12 @@ function hit(e,dmg,crit){
       S.fx.push({k:'txt',x:e.x,y:e.y-44,t:nw.name.toUpperCase(),life:1.4,max:1.4});say('Трофей: '+nw.name+'. Rust вооружен. Способность - '+nw.sp.name+'.');ui()}}}
 }
 const tarOn=()=>{const T=S.units.tar;return T.w>=0&&T.field&&!T.out};
-function hurtTar(d){const T=S.units.tar;if(T.out)return;T.hp-=d;T.hurt=.25;T.ph=1.6;
+function hurtU(T,d){if(T.out||T.w<0)return;if(T.hp==null)T.hp=tmax(T);T.hp-=d;T.hurt=.25;T.ph=1.6;
   S.fx.push({k:'txt',x:T.x+(Math.random()*30-15),y:T.y-70,t:'-'+Math.round(d),life:.6,max:.6});
-  if(T.hp<=0){T.hp=0;T.out=true;T.field=false;T.goal=null;T.jmp=null;T.x=UNITS.tar.x;T.y=HOME_Y;
-    S.fx.push({k:'txt',x:T.x,y:T.y-80,t:'ТАРУК ВЫБЫЛ ДО КОНЦА ВОЛНЫ',life:1.6,max:1.6})}}
+  if(T.hp<=0){T.hp=0;T.out=true;T.field=false;T.goal=null;T.jmp=null;T.focus=null;if(T.id==='tar')T.x=UNITS.tar.x;T.y=UNITS[T.id].y;
+    if(T.id==='hero'&&S.aim){S.aim=null}
+    S.fx.push({k:'txt',x:T.x,y:T.y-80,t:UNITS[T.id].name.toUpperCase()+' ВЫБЫЛ ДО КОНЦА ВОЛНЫ',life:1.6,max:1.6});ui()}}
+const hurtTar=d=>hurtU(S.units.tar,d);
 function explode(e){if(e.boomed)return;e.boomed=true;e.dead=true;
   spr('wave',e.x,e.y,210,.45);S.fx.push({k:'boom',x:e.x,y:e.y,r:60,life:.3,max:.3});
   for(const o of S.enemies)if(o!==e&&!o.dead&&Math.hypot(o.x-e.x,o.y-e.y)<95)hit(o,40);
@@ -272,7 +274,7 @@ function explode(e){if(e.boomed)return;e.boomed=true;e.dead=true;
 function gunShot(e){const T=S.units.tar;let tx,ty;
   if(tarOn()&&Math.hypot(T.x-e.x,T.y-e.y)<420){hurtTar(8);tx=T.x;ty=T.y-30}
   else{const c=IDS.map(id=>S.units[id]).filter(u=>u.w>=0&&!u.out&&!u.field);if(!c.length)return;
-    const u=c[Math.floor(Math.random()*c.length)];u.sup=1.5;tx=u.x;ty=u.y-30}
+    const u=c[Math.floor(Math.random()*c.length)];hurtU(u,6);tx=u.x;ty=u.y-30}
   S.fx.push({k:'line',x1:e.x,y1:e.y-30,x2:tx,y2:ty,life:.12,max:.12,strong:1});spr('shot',e.x,e.y-34,30,.16)}
 const dist=(u,e)=>Math.hypot(e.x-u.x,e.y-u.y);
 const alive=()=>S.enemies.filter(e=>!e.dead&&e.y>0);
@@ -365,7 +367,7 @@ function step(dt){
     u.cd-=dt;if(u.hurt>0)u.hurt-=dt;if(u.ph>0)u.ph-=dt;if(u.at>0)u.at-=dt;if(u.scd>0)u.scd=Math.max(0,u.scd-dt);
     const w=wpn(u);
     if(u.out)continue;
-    if(u.sup>0){u.sup-=dt;continue} // прижат огнем стрелка
+    if(u.hp==null)u.hp=tmax(u);
     if(id==='tar'){if(u.hp==null)u.hp=tmax(u);
       if(!u.field&&u.hp<tmax(u))u.hp=Math.min(tmax(u),u.hp+14*dt);
       if(u.field){
@@ -411,7 +413,7 @@ function step(dt){
     S.traps=S.traps.filter(t=>t.dur>0)}
   S.enemies=S.enemies.filter(e=>!e.dead);
   if(S.aim&&(S.aim.tg&&S.aim.tg.dead))S.aim.tg=null;
-  if(S.aim&&(!alive().length||S.units.hero.sup>0)){S.aim=null;ui()}
+  if(S.aim&&(!alive().length||S.units.hero.out)){S.aim=null;ui()}
   for(const id of IDS){const u=S.units[id];if(u.focus&&u.focus.dead)u.focus=null}
   if(S.later&&S.later.length){for(const l of S.later){l.t-=dt;if(l.t<=0)l.f()}S.later=S.later.filter(l=>l.t>0)}
   for(const f of S.fx)f.life-=dt;S.fx=S.fx.filter(f=>f.life>0);
@@ -420,7 +422,7 @@ function step(dt){
   if(S.active&&!S.queue.length&&!S.enemies.length){
     S.active=false;S.scrap+=30+5*S.wave;S.score+=100*S.wave+Math.round(S.door)*2;
     if(S.wave<WAVES.length)S.banner={t:'ПОБЕДА',s:'Волна '+S.wave+' отбита · +'+(30+5*S.wave)+' скрапа',life:2.8};
-    {const T=S.units.tar;if(T.w>=0){T.out=false;T.hp=tmax(T)}}
+    for(const id of IDS){const T=S.units[id];if(T.w>=0){T.out=false;T.hp=tmax(T)}}ui();
     if(S.wave>=WAVES.length){S.score+=1000+Math.round(S.door)*10;end(true)}
   }
 }
@@ -549,9 +551,8 @@ function draw(){
   {const T=S.units.tar;
     if(T.w>=0&&T.goal&&S.selU==='tar'){g.strokeStyle='rgba(242,169,59,.28)';g.lineWidth=1.5;g.setLineDash([3,9]);g.beginPath();g.arc(T.goal.x,T.goal.y,GUARD,0,7);g.stroke();g.setLineDash([]);
       }
-    if(T.w>=0&&T.hp!=null&&(T.hp<tmax(T)||T.field)){const w=54,x=T.x-w/2,y=T.y-98;g.fillStyle='#17130e';g.fillRect(x-1,y-1,w+2,7);g.fillStyle=T.out?'#c2552d':'#8fbf5a';g.fillRect(x,y,w*Math.max(0,T.hp)/tmax(T),5)}
-    for(const id of IDS){const u=S.units[id];if(u.w>=0&&u.sup>0){g.fillStyle='#ff785a';g.font='13px "Russo One",sans-serif';g.textAlign='center';g.fillText('ПРИЖАТ',u.x,u.y-90)}}
-    if(SU.w>=0&&!SU.out){const x=Math.round(SU.x),y=Math.round(SU.y-(S.selU==='tar'?112:74)+Math.sin(performance.now()/260)*2);
+    for(const id of IDS){const T=S.units[id];if(T.w>=0&&T.hp!=null&&(T.hp<tmax(T)||T.field)){const w=id==='tar'?54:40,x=Math.round(T.x-w/2),y=Math.round(T.y-(id==='tar'?98:70));g.fillStyle='#17130e';g.fillRect(x-1,y-1,w+2,7);g.fillStyle=T.out?'#c2552d':'#8fbf5a';g.fillRect(x,y,w*Math.max(0,T.hp)/tmax(T),5)}}
+    if(SU.w>=0&&!SU.out){const x=Math.round(SU.x),y=Math.round(SU.y-(S.selU==='tar'?112:84)+Math.sin(performance.now()/260)*2);
       g.fillStyle='#f2a93b';g.strokeStyle='#17130e';g.lineWidth=1.5;g.beginPath();g.moveTo(x-7,y);g.lineTo(x+7,y);g.lineTo(x,y+8);g.closePath();g.fill();g.stroke();
       if(SU.wx!=null&&!SU.field&&Math.abs(SU.wx-SU.x)>4){g.fillStyle='#f2a93b';g.fillRect(Math.round(SU.wx)-6,Math.round(SU.y+26),12,2)}}}
   {const k=Math.max(0,S.door/100),x=120,y=926,w=400,h=18;
@@ -728,9 +729,9 @@ function hud(){
     txt=sp.name+'|'+cd+'|'+!!u.out;if(last['a'+id]===txt)continue;last['a'+id]=txt;
     ab[id].innerHTML='<span class="row"><img alt="" src="'+ART['ab_'+sp.kind]+'"><span>'+sp.name+(cd?' · '+cd+' с':'')+'<small>'+UNITS[id].name+': '+sp.tip+'</small></span></span>';
     ab[id].disabled=cd>0||!!u.out;ab[id].classList.toggle('on',!cd&&!u.out);ab[id].dataset.cd=cd||'';ab[id].setAttribute('aria-label',sp.name)}
-  for(const id of IDS){const u=S.units[id],d=UNITS[id],hired=u.w>=0,hurt=hired&&(u.sup>0||u.ph>0),out=!!u.out;
-    const hp=id==='tar'&&hired&&u.hp!=null?Math.round(100*Math.max(0,u.hp)/tmax(u)):-1;
-    const st=!hired?'за '+d.weapons[0].cost:out?'выбыл до конца волны':u.sup>0?'прижат огнем':id==='tar'&&u.field?'в поле':wpn(u).name;
+  for(const id of IDS){const u=S.units[id],d=UNITS[id],hired=u.w>=0,hurt=hired&&u.ph>0,out=!!u.out;
+    const hp=hired&&u.hp!=null?Math.round(100*Math.max(0,u.hp)/tmax(u)):-1;
+    const st=!hired?'за '+d.weapons[0].cost:out?'выбыл до конца волны':id==='tar'&&u.field?'в поле':wpn(u).name;
     const key=[hired,hurt,out,hp,st,S.selU===id].join('|');if(last['q'+id]===key)continue;last['q'+id]=key;
     const b=sq[id];b.hidden=!hired;b.className='sq'+(S.selU===id?' sel':'')+(hired?'':' off')+(hurt?' hurt':'')+(out?' out':'');
     b.innerHTML='<img alt="" src="'+ART['pt_'+id+(hurt&&!out?'H':'')]+'"><span class="t"><b>'+d.name+'</b><small>'+st+'</small>'+(hp>=0?'<span class="hpb"><i style="width:'+hp+'%"></i></span>':'')+'</span>';
