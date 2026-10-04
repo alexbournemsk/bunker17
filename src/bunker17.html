@@ -147,11 +147,11 @@ const $=id=>document.getElementById(id);
 // радиус в клетках: 1 клетка = 80
 const UNITS={
   hero:{name:'Rust',col:'#3f6a8a',x:320,y:741,weapons:[
-    {name:'Кулаки',cost:0,dmg:6,rate:.5,r:75,melee:1,sp:{name:'Бросок камня',cd:4,kind:'rock',tip:'оглушает цель на 2 с, любое расстояние'}},
-    {name:'Нож',cost:40,dmg:12,rate:.45,r:85,melee:1,sp:{name:'Бросок ножа',cd:5,kind:'knife',r:240,tip:'крит по одной цели, радиус 3'}},
-    {name:'Копье',cost:90,dmg:22,rate:.7,r:160,melee:1,sp:{name:'Бросок копья',cd:7,kind:'throw',r:400,tip:'сильный удар по одной цели, радиус 5'}},
-    {name:'Пистолет',cost:160,dmg:20,rate:.5,r:240,sp:{name:'Двойной выстрел',cd:5,kind:'double',tip:'два крита по двум целям'}},
-    {name:'Винтовка',cost:280,dmg:45,rate:.9,r:320,sp:{name:'Хедшот',cd:8,kind:'head',tip:'100% крит, урон x8'}}]},
+    {name:'Кулаки',cost:0,dmg:6,rate:.5,r:75,melee:1,sp:{name:'Бросок камня',cd:4,kind:'rock',r:260,dmg:18,tip:'прицельный бросок по зонам, радиус 3'}},
+    {name:'Нож',cost:40,dmg:12,rate:.45,r:85,melee:1,sp:{name:'Бросок ножа',cd:5,kind:'knife',r:260,dmg:60,tip:'прицельный бросок по зонам, радиус 3'}},
+    {name:'Копье',cost:90,dmg:22,rate:.7,r:160,melee:1,sp:{name:'Бросок копья',cd:7,kind:'throw',r:400,dmg:90,tip:'прицельный бросок по зонам, радиус 5'}},
+    {name:'Пистолет',cost:160,dmg:20,rate:.5,r:240,sp:{name:'Прицельный выстрел',cd:5,kind:'double',r:440,dmg:60,acc:5,tip:'выстрел по зонам, радиус 5.5'}},
+    {name:'Винтовка',cost:280,dmg:45,rate:.9,r:320,sp:{name:'Прицельный выстрел',cd:8,kind:'head',r:720,dmg:180,acc:15,tip:'выстрел по зонам, все поле'}}]},
   tar:{name:'Тарук',col:'#a5673a',x:180,y:750,hire:100,weapons:[
     {name:'Молот',cost:100,dmg:28,rate:1,r:90,melee:1,sp:{name:'Отброс',cd:9,kind:'knock',r:210,tip:'отбрасывает всех в радиусе 2.6'}},
     {name:'Суперкувалда',cost:220,dmg:60,rate:1,r:95,melee:1,sp:{name:'Мощный отброс',cd:12,kind:'knockAll',r:240,tip:'всех в радиусе 3 - на полполя назад'}}]},
@@ -180,10 +180,42 @@ const EN={
 };
 const GUNY=330,HOME_Y=750,GUARD=150,TSPD=130,HOLD=3,AGGRO=150;
 const tmax=u=>u.w>0?240:170;
+// первые волны учат прицельному удару: по одной новой задаче на волну
+const WTIP=['Крысы. Rust бьет сам. Кнопка камня - прицельный бросок: выбери цель, потом зону.',
+  'Рейдеры-разведчики. Бросок по ногам замедляет, в голову - оглушает.',
+  'Стрелок встает вдали и прижимает бойцов. Бросок по рукам - он замолчит.',
+  'Подрывник бежит к двери. Попади по рукам - взорвется на месте.'];
+// зоны прицельного удара: [ключ, подпись, базовый шанс, множитель урона]
+const ZONES=[['head','ГОЛОВА',55,2.5],['arms','РУКИ',70,.7],['body','КОРПУС',95,1],['legs','НОГИ',75,.7]];
+const zHint=(z,e)=>z==='head'?'крит, оглушение':z==='body'?'надежно':z==='legs'?'замедление':e.type==='bomber'?'подрыв на месте':e.type==='gunner'?'не стреляет':'бьет слабее';
+const aimR=u=>wpn(u).sp.r+0;
+function zChance(u,e,z){const sp=wpn(u).sp;return Math.round(Math.max(10,Math.min(95,z[2]+(sp.acc||0)-dist(u,e)/sp.r*25)))}
+function aimPanel(e){const w=M?330:270,rh=M?58:44,h=rh*4;return{w,rh,h,x:Math.round(e.x>W/2?Math.max(8,e.x-46-w):Math.min(W-w-8,e.x+46)),y:Math.round(Math.max(110,Math.min(WALL-h-20,e.y-h/2)))}}
+function aimFire(z){const u=S.units.hero,e=S.aim.tg,w=wpn(u),sp=w.sp;S.aim=null;
+  if(!e||e.dead)return;u.ang=Math.atan2(e.y-u.y,e.x-u.x);
+  const[bx,by]=MUZ[u.id+u.w]?muzzle(u):[u.x,u.y-30],ok=Math.random()*100<zChance(u,e,z);
+  S.fx.push({k:'line',x1:bx,y1:by,x2:e.x+(ok?0:26),y2:e.y-(ok?10:60),life:.22,max:.22,strong:1});
+  if(!ok){u.scd=sp.cd/2;S.fx.push({k:'txt',x:e.x,y:e.y-40,t:'ПРОМАХ',life:.8,max:.8});return}
+  u.scd=sp.cd;const k=z[0];
+  if(k==='arms'&&e.type==='bomber'){S.fx.push({k:'txt',x:e.x,y:e.y-40,t:'ПОДРЫВ',life:.9,max:.9});explode(e);return}
+  hit(e,sp.dmg*z[3],k==='head');
+  if(k==='head')e.stun=Math.max(e.stun||0,sp.kind==='rock'?2:1.5);
+  else if(k==='legs'){e.crip=6;S.fx.push({k:'txt',x:e.x,y:e.y-40,t:'ХРОМАЕТ',life:.9,max:.9})}
+  else if(k==='arms'){e.disarm=8;S.fx.push({k:'txt',x:e.x,y:e.y-40,t:e.type==='gunner'?'НЕ СТРЕЛЯЕТ':'ОСЛАБЛЕН',life:.9,max:.9})}
+  else if(sp.kind==='rock')e.stun=Math.max(e.stun||0,.5);
+  spr('hit',e.x,e.y-12,46,.22)}
+function aimTap(p){const u=S.units.hero,A=S.aim;
+  if(A.tg&&!A.tg.dead){const P=aimPanel(A.tg);
+    if(p[0]>=P.x&&p[0]<=P.x+P.w&&p[1]>=P.y&&p[1]<P.y+P.h){aimFire(ZONES[Math.floor((p[1]-P.y)/P.rh)]);ui();return}}
+  let near=null,nd=1e9;
+  for(const e of alive()){const d=Math.hypot(e.x-p[0],e.y-10-p[1]);if(d<EN[e.type].r+34&&d<nd){near=e;nd=d}}
+  if(!near){S.aim=null;ui();return}
+  if(dist(u,near)>aimR(u)+EN[near.type].r){say('Слишком далеко для прицельного удара.');return}
+  A.tg=near}
 const WAVES=[
-  [['rat',5,1.2]],
-  [['raider',4,2.4]],
-  [['raider',6,1],['rat',6,.6],['gunner',1,1]],
+  [['rat',6,1.3]],
+  [['raider',2,3],['rat',3,1],['raider',2,2.4]],
+  [['raider',3,1.8],['gunner',1,1],['rat',4,.8],['raider',2,1.6]],
   [['rat',5,.8],['raider',4,1.5],['bomber',2,2.5]],
   [['brute',1,2],['raider',5,1.3],['gunner',2,2]],
   [['rat',10,.6],['bomber',3,2]],
@@ -209,6 +241,7 @@ function startWave(){
   if(S.active||S.over||S.wave>=WAVES.length)return;
   S.cp={score:S.score,scrap:S.scrap,door:S.door,wave:S.wave,traps:S.traps.map(t=>({...t})),units:Object.fromEntries(IDS.map(id=>[id,S.units[id].w]))};
   S.wave++;S.active=true;S.t=0;S.queue=[];S.banner=null;let t=.5;
+  if(WTIP[S.wave-1])say(WTIP[S.wave-1]);
   for(const [type,n,gap] of WAVES[S.wave-1]){for(let i=0;i<n;i++){S.queue.push({t,type});t+=gap}t+=1.5}
   ui();
 }
@@ -268,6 +301,9 @@ function knockBack(e,d){
 function special(u){
   if(u.w<0||u.scd>0||S.over||S.paused)return;
   if(u.out){say(UNITS[u.id].name+' выбыл до конца волны.');return}
+  if(u.id==='hero'){if(S.aim){S.aim=null;ui();return}
+    if(!alive().some(e=>dist(u,e)<=aimR(u)+EN[e.type].r)){say(wpn(u).sp.name+': нет врагов в радиусе.');return}
+    S.aim={tg:(u.focus&&!u.focus.dead&&dist(u,u.focus)<=aimR(u)+EN[u.focus.type].r)?u.focus:null};S.pick=false;S.shop=false;ui();return}
   const w=wpn(u),k=w.sp.kind,all=alive().sort((a,b)=>b.y-a.y);
   // цель: отмеченный тапом враг, иначе ближайший к стене
   const F=u.focus;
@@ -304,20 +340,21 @@ function step(dt){
     const tr=e.y<WALL&&traps.get(Math.floor(e.x/C)+','+Math.floor(e.y/C));e.slow=!!tr&&tr.dur>0;
     if(e.slow)tr.dur-=dt; // колючка изнашивается, пока в ней кто-то есть
     if(e.slow){hit(e,WIRE*dt);if(e.dead)continue}
+    if(e.crip>0)e.crip-=dt;if(e.disarm>0)e.disarm-=dt;
     if(e.stun>0){e.stun-=dt;continue}
     // Тарук в поле держит до HOLD врагов; крысы пробегают мимо, подрывник об него взрывается
     e.hold=false;e.fight=false;
     if(tOn&&e.type!=='rat'){const td=Math.hypot(T.x-e.x,T.y-e.y);
       if(e.type==='bomber'){if(td<32+b.r){explode(e);continue}}
       else if(td<AGGRO&&!(e.type==='gunner'&&e.y>=GUNY)&&holders<HOLD){holders++;e.hold=true;
-        if(td>30+b.r){const st=b.speed*(e.slow?SLOW:1)*dt;e.x+=(T.x-e.x)/td*st;e.y+=(T.y-e.y)/td*st} // сворачивает к Таруку
-        else{e.fight=true;e.acd-=dt;if(e.acd<=0){e.acd=1;hurtTar(b.atk*2);spr('hit',T.x,T.y-30,34,.2)}}
+        if(td>30+b.r){const st=b.speed*(e.slow?SLOW:1)*(e.crip>0?.4:1)*dt;e.x+=(T.x-e.x)/td*st;e.y+=(T.y-e.y)/td*st} // сворачивает к Таруку
+        else{e.fight=true;e.acd-=dt;if(e.acd<=0){e.acd=1;hurtTar(b.atk*2*(e.disarm>0?.5:1));spr('hit',T.x,T.y-30,34,.2)}}
         continue}}
-    if(e.type==='gunner'&&e.y>=GUNY){e.acd-=dt;if(e.acd<=0){e.acd=1.8;gunShot(e)}continue}
+    if(e.type==='gunner'&&e.y>=GUNY){if(e.disarm>0)continue;e.acd-=dt;if(e.acd<=0){e.acd=1.8;gunShot(e)}continue}
     if(e.y>=WALL&&e.type==='bomber'){explode(e);continue}
     if(e.y>=WALL){e.y=WALL;e.acd-=dt;
-      if(e.acd<=0){e.acd=1;S.door-=b.atk;S.fx.push({k:'boom',x:e.x,y:WALL+22,r:16,life:.15,max:.15})}}
-    else e.y+=b.speed*(e.slow?SLOW:1)*dt
+      if(e.acd<=0){e.acd=1;S.door-=b.atk*(e.disarm>0?.5:1);S.fx.push({k:'boom',x:e.x,y:WALL+22,r:16,life:.15,max:.15})}}
+    else e.y+=b.speed*(e.slow?SLOW:1)*(e.crip>0?.4:1)*dt
   }
   // защитники: каждый берет ближайшего к стене врага, еще не занятого другим
   const claims=new Map();
@@ -370,6 +407,8 @@ function step(dt){
   if(S.traps.some(t=>t.dur<=0)){for(const t of S.traps)if(t.dur<=0){S.fx.push({k:'txt',x:t.c*C+40,y:t.r*C+30,t:'СЛОМАНА',life:.9,max:.9});if(S.sel===t){S.sel=null;ui()}}
     S.traps=S.traps.filter(t=>t.dur>0)}
   S.enemies=S.enemies.filter(e=>!e.dead);
+  if(S.aim&&(S.aim.tg&&S.aim.tg.dead))S.aim.tg=null;
+  if(S.aim&&(!alive().length||S.units.hero.sup>0)){S.aim=null;ui()}
   for(const id of IDS){const u=S.units[id];if(u.focus&&u.focus.dead)u.focus=null}
   if(S.later&&S.later.length){for(const l of S.later){l.t-=dt;if(l.t<=0)l.f()}S.later=S.later.filter(l=>l.t>0)}
   for(const f of S.fx)f.life-=dt;S.fx=S.fx.filter(f=>f.life>0);
@@ -423,7 +462,7 @@ function retry(){const c=S.cp;if(!c)return;
   S.scrap=c.scrap;S.door=c.door;S.wave=c.wave;S.traps=c.traps.map(t=>({...t}));S.score=Math.max(0,(c.score||0)-200); // повтор волны стоит 200 очков
   for(const id of IDS){const u=S.units[id];u.w=c.units[id];u.cd=0;u.scd=0;u.x=UNITS[id].x;u.y=UNITS[id].y;u.field=false;u.goal=null;u.out=false;u.hp=null;u.sup=0;u.at=0;u.jmp=null;u.focus=null;u.wx=null}
   S.later=[];
-  S.active=false;S.over=false;S.queue=[];S.enemies=[];S.fx=[];S.focus=null;S.sel=null;S.paused=false;
+  S.active=false;S.over=false;S.aim=null;S.queue=[];S.enemies=[];S.fx=[];S.focus=null;S.sel=null;S.paused=false;
   $('over').hidden=true;ui();say('Волна '+(c.wave+1)+': все возвращено к ее началу. Можно перевооружиться и запустить.')}
 
 const doorStage=()=>{const k=S.door/100;return k>.83?0:k>.67?1:k>.5?2:k>.33?3:k>0?4:5};
@@ -477,6 +516,8 @@ function draw(){
     const top=ready(ei)?ei.height-b.r-4:b.r;
     if(e.hp<e.max){const w=b.r*2+6;g.fillStyle='#17130e';g.fillRect(e.x-w/2,e.y-top-9,w,5);
       g.fillStyle='#8fbf5a';g.fillRect(e.x-w/2,e.y-top-9,w*e.hp/e.max,5)}
+    if(e.crip>0){g.fillStyle='#f2a93b';g.fillRect(Math.round(e.x-b.r),Math.round(e.y-top-17),6,6)}
+    if(e.disarm>0){g.fillStyle='#c97be0';g.fillRect(Math.round(e.x-b.r)+(e.crip>0?9:0),Math.round(e.y-top-17),6,6)}
   }
   for(const id of IDS){const u=S.units[id];if(u.w<0)continue;const d=UNITS[id],w=wpn(u),R=d.fat?21:16;
     const hi=IMG[id+u.w];
@@ -525,6 +566,20 @@ function draw(){
       g.beginPath();g.moveTo(f.x1,f.y1);g.lineTo(f.x2,f.y2);g.stroke()}
     else if(f.k==='txt'){g.fillStyle='rgba(255,224,138,'+a+')';g.font='16px "Russo One",sans-serif';g.textAlign='center';g.fillText(f.t,f.x,f.y-(1-a)*18)}
     else{g.fillStyle='rgba(242,169,59,'+a*.55+')';g.beginPath();g.arc(f.x,f.y,f.r*(1.1-a*.5),0,7);g.fill()}}
+  if(S.aim&&!S.over){const u=S.units.hero,A=S.aim,R0=aimR(u),G='rgba(140,255,150,';
+    g.fillStyle='rgba(8,22,12,.42)';g.fillRect(0,0,W,WALL-28);
+    g.save();g.setLineDash([10,8]);g.strokeStyle=G+'.7)';g.lineWidth=2;g.beginPath();g.arc(u.x,u.y,R0,Math.PI,2*Math.PI);g.stroke();g.restore();
+    const br=(e,a,lw)=>{const b=EN[e.type],ei=IMG[e.type],hh=ready(ei)?ei.height:b.r*2,x0=Math.round(e.x-b.r-7),x1=Math.round(e.x+b.r+7),y0=Math.round(e.y+b.r+4-hh-3),y1=Math.round(e.y+b.r+7),L=7;
+      g.strokeStyle=G+a+')';g.lineWidth=lw;g.beginPath();g.moveTo(x0,y0+L);g.lineTo(x0,y0);g.lineTo(x0+L,y0);g.moveTo(x1-L,y0);g.lineTo(x1,y0);g.lineTo(x1,y0+L);
+      g.moveTo(x1,y1-L);g.lineTo(x1,y1);g.lineTo(x1-L,y1);g.moveTo(x0+L,y1);g.lineTo(x0,y1);g.lineTo(x0,y1-L);g.stroke()};
+    for(const e of alive())if(dist(u,e)<=R0+EN[e.type].r)br(e,e===A.tg?1:.55,e===A.tg?3:2);
+    g.textAlign='left';
+    if(!A.tg){g.fillStyle=G+'.9)';g.font=(M?24:16)+'px "JetBrains Mono",monospace';g.fillText('> ПРИЦЕЛ: выбери цель',12,WALL-44)}
+    else{const P=aimPanel(A.tg),fs=M?22:16;g.fillStyle='rgba(6,16,9,.9)';g.fillRect(P.x,P.y,P.w,P.h);g.strokeStyle=G+'.8)';g.lineWidth=2;g.strokeRect(P.x+1,P.y+1,P.w-2,P.h-2);
+      ZONES.forEach((z,i)=>{const y=P.y+i*P.rh;if(i){g.fillStyle=G+'.25)';g.fillRect(P.x+8,y,P.w-16,1)}
+        g.fillStyle=G+'1)';g.font=fs+'px "JetBrains Mono",monospace';g.textAlign='left';g.fillText(z[1],P.x+12,y+P.rh*.44);
+        g.textAlign='right';g.fillText(zChance(u,A.tg,z)+'%',P.x+P.w-12,y+P.rh*.44);
+        g.textAlign='left';g.fillStyle=G+'.6)';g.font=Math.round(fs*.72)+'px "JetBrains Mono",monospace';g.fillText(zHint(z[0],A.tg),P.x+12,y+P.rh*.82)})}}
   {const now=performance.now(),fs=M?24:15;while(LOG.length&&now-LOG[0].at>4200)LOG.shift();
     g.font=fs+'px "JetBrains Mono",monospace';g.textAlign='left';
     LOG.forEach((l,i)=>{const k=Math.min(1,(4200-(now-l.at))/700),sh=Math.max(0,Math.floor((now-l.at)/18));
@@ -547,6 +602,7 @@ cv.addEventListener('pointermove',e=>{if(e.pointerType==='mouse')S.hover=cellOf(
 cv.addEventListener('pointerleave',()=>S.hover=null);
 cv.addEventListener('pointerdown',e=>{
   if(S.over)return;const p=pt(e),[c,r]=cellOf(p);
+  if(S.aim){aimTap(p);return}
   if(S.shop){S.shop=false;ui()}
   if(S.pick){S.sel=null;
     if(!canBuild(c,r))say(trapAt(c,r)?'Клетка занята.':'Ловушки ставятся только на поле перед стеной.');
@@ -623,7 +679,7 @@ addEventListener('keydown',e=>{
   if(e.key===' '){e.preventDefault();if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();startWave()}
   else if(e.key==='p'||e.key==='з')$('pause').click();
   else if('123'.includes(e.key))special(S.units[IDS[+e.key-1]]);
-  else if(e.key==='Escape'){S.pick=false;S.sel=null;for(const id of IDS)S.units[id].focus=null;ui()}
+  else if(e.key==='Escape'){S.aim=null;S.pick=false;S.sel=null;for(const id of IDS)S.units[id].focus=null;ui()}
 });
 
 // телефон: волна, скорость и пауза - наверх; отладка - в панель под кнопкой DEV; магазин - в панель под кнопкой
@@ -689,7 +745,7 @@ addEventListener('resize',fit);
 let acc=0,prev=performance.now();const DT=1/60;
 function frame(now){
   let d=Math.min(.1,(now-prev)/1000);prev=now;
-  if(!S.paused&&!S.over){acc+=d*S.speed;while(acc>=DT){step(DT);acc-=DT;if(S.over)break}}
+  if(!S.paused&&!S.over){acc+=d*(S.aim?.12:S.speed);while(acc>=DT){step(DT);acc-=DT;if(S.over)break}}
   hud();draw();requestAnimationFrame(frame);
 }
 // состояние переживает обновление страницы при новой публикации
