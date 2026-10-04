@@ -163,8 +163,8 @@ const $=id=>document.getElementById(id);
 const UNITS={
   hero:{name:'Rust',col:'#3f6a8a',x:320,y:741,weapons:[
     {name:'Кулаки',cost:0,dmg:6,rate:.5,r:75,melee:1,sp:{name:'Бросок камня',cd:4,kind:'rock',r:260,dmg:18,tip:'прицельный бросок по зонам, радиус 3'}},
-    {name:'Нож',cost:40,dmg:12,rate:.45,r:85,melee:1,sp:{name:'Бросок ножа',cd:5,kind:'knife',r:260,dmg:60,tip:'прицельный бросок по зонам, радиус 3'}},
-    {name:'Копье',cost:90,dmg:22,rate:.7,r:160,melee:1,sp:{name:'Бросок копья',cd:7,kind:'throw',r:400,dmg:90,tip:'прицельный бросок по зонам, радиус 5'}},
+    {name:'Нож',off:1,cost:40,dmg:12,rate:.45,r:85,melee:1,sp:{name:'Бросок ножа',cd:5,kind:'knife',r:260,dmg:60,tip:'прицельный бросок по зонам, радиус 3'}},
+    {name:'Копье',off:1,cost:90,dmg:22,rate:.7,r:160,melee:1,sp:{name:'Бросок копья',cd:7,kind:'throw',r:400,dmg:90,tip:'прицельный бросок по зонам, радиус 5'}},
     {name:'Пистолет',cost:160,dmg:20,rate:.5,r:240,sp:{name:'Прицельный выстрел',cd:5,kind:'double',r:440,dmg:60,acc:5,tip:'выстрел по зонам, радиус 5.5'}},
     {name:'Винтовка',cost:280,dmg:45,rate:.9,r:320,sp:{name:'Прицельный выстрел',cd:8,kind:'head',r:720,dmg:180,acc:15,tip:'выстрел по зонам, все поле'}}]},
   tar:{name:'Тарук',col:'#a5673a',x:180,y:750,hire:100,weapons:[
@@ -251,6 +251,7 @@ function reset(){
   $('over').hidden=true;ui();
 }
 const wpn=u=>UNITS[u.id].weapons[u.w];
+const nxt=u=>{const ws=UNITS[u.id].weapons;for(let i=u.w+1;i<ws.length;i++)if(!ws[i].off)return i;return -1}; // следующее оружие в магазине; off - убрано из игры
 function startWave(){
   if(S.over&&S.door<=0&&S.cp)retry(); // после проигрыша кнопка волны = повторить волну
   if(S.active||S.over||S.wave>=WAVES.length)return;
@@ -649,9 +650,9 @@ function say(t){if(!M)$('hint').textContent=t;const n=M?36:56,now=performance.no
 const buy={},ab={};
 for(const id of IDS){
   const b=document.createElement('button');buy[id]=b;$('build').appendChild(b);
-  b.onclick=()=>{const u=S.units[id],nw=UNITS[id].weapons[u.w+1];if(!nw)return;
+  b.onclick=()=>{const u=S.units[id],ni=nxt(u),nw=UNITS[id].weapons[ni];if(!nw)return;
     if(S.scrap<nw.cost){say('Не хватает скрапа: нужно '+nw.cost+'.');return}
-    S.scrap-=nw.cost;u.w++;u.scd=0;ui();
+    S.scrap-=nw.cost;u.w=ni;u.scd=0;ui();
     say(UNITS[id].name+': '+nw.name+'. Способность - '+nw.sp.name+'.')};
   const a=document.createElement('button');ab[id]=a;$('abil').appendChild(a);a.onclick=()=>special(S.units[id]);
   a.addEventListener('pointerenter',e=>{S.showR={id,until:e.pointerType==='mouse'?Infinity:performance.now()+1800}});
@@ -713,7 +714,7 @@ if(M){
 }
 let last={};
 function ui(){
-  for(const id of IDS){const u=S.units[id],d=UNITS[id],nw=d.weapons[u.w+1],b=buy[id];
+  for(const id of IDS){const u=S.units[id],d=UNITS[id],ni=nxt(u),nw=d.weapons[ni],b=buy[id];
     b.disabled=!nw;
     const cw=u.w>=0?wpn(u):null,im=i=>'<img alt="" src="'+ART['shop'+(id==='hero'?'':id)+i]+'">';
     const desc=x=>'урон '+x.dmg+', радиус '+(x.r/C).toFixed(1);
@@ -722,7 +723,7 @@ function ui(){
       :pt+'<span>Нанять: '+d.name+'<small>'+nw.name+' - '+desc(nw)+'</small></span>';
     const right=!nw?'<span class="nx">макс.</span>'
       :!cw?'<span class="nx"><b>'+nw.cost+'</b></span>'
-      :'<span class="nx">→'+im(u.w+1)+'<b>'+nw.cost+'</b></span>';
+      :'<span class="nx">→'+im(ni)+'<b>'+nw.cost+'</b></span>';
     b.innerHTML='<span class="row">'+left+right+'</span>';
     ab[id].hidden=u.w<0}
   tb.classList.toggle('on',S.pick);
