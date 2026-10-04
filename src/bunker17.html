@@ -562,7 +562,7 @@ cv.addEventListener('pointerdown',e=>{
   if(p[1]>=WALL-25&&U.w>=0){U.wx=Math.max(28,Math.min(W-28,p[0]));S.sel=null;ui();return}
   S.sel=trapAt(c,r)||null;ui();
 });
-function say(t){const h=$('hint');h.textContent=t;if(M){h.classList.add('show');clearTimeout(say.t);say.t=setTimeout(()=>h.classList.remove('show'),2600)}}
+function say(t){if(M)return;$('hint').textContent=t} // на телефоне всплывающих подсказок нет: они перекрывали кнопки
 
 // пульт: покупки и способности
 const buy={},ab={};
