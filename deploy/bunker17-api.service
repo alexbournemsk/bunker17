@@ -1,0 +1,13 @@
+[Unit]
+Description=Bunker 17 leaderboard API
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 /opt/bunker17/api/server.py
+Environment=B17_DB=/var/lib/bunker17/scores.db
+Environment=B17_PORT=8017
+User=www-data
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
