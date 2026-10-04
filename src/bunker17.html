@@ -564,8 +564,7 @@ for(const id of IDS){
 }
 const sq={};
 for(const id of IDS){const b=document.createElement('button');b.className='sq';sq[id]=b;$('squad').appendChild(b);
-  b.onclick=()=>{if(S.units[id].w<0)return;S.selU=id;S.pick=false;S.shop=false;ui();
-    say(id==='tar'?'Тарук: тап по полю - идти туда и держать место, тап по стене - вернуться.':UNITS[id].name+': тап по врагу - бить его первым.')}}
+  b.onclick=()=>{if(S.units[id].w<0)return;S.selU=id;S.pick=false;S.shop=false;ui()}}
 const tb=document.createElement('button');$('build').appendChild(tb);
 tb.innerHTML='<span class="row"><img alt="" style="height:auto" src="'+ART.trap+'"><span>Ловушка<small>замедляет, ранит, изнашивается</small></span><span class="nx"><b>'+TRAP+'</b></span></span>';
 tb.onclick=()=>{S.pick=!S.pick;S.sel=null;if(M)S.shop=false;ui()};
