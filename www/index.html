@@ -68,7 +68,7 @@ button.go{background:var(--rust);border-color:var(--rust);font-family:var(--disp
 .ovb{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
 #rot{display:none}
 #squad{flex-wrap:nowrap;gap:8px}
-#squad .sq{flex:1 1 0;min-width:0;flex-direction:row;align-items:center;gap:8px;padding:4px 8px 4px 4px;min-height:56px}
+#squad .sq{flex:0 1 calc((100% - 16px)/3);min-width:0;flex-direction:row;align-items:center;gap:8px;padding:4px 8px 4px 4px;min-height:56px}
 .sq img{width:44px;height:44px;flex:none;image-rendering:pixelated}
 .sq .t{min-width:0;flex:1;text-align:left;font-size:12px;line-height:1.25}
 .sq .t b{display:block;font:400 14px var(--display);letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -280,6 +280,7 @@ function knockBack(e,d){
 }
 function special(u){
   if(u.w<0||u.scd>0||S.over||S.paused)return;
+  if(u.out){say(UNITS[u.id].name+' выбыл до конца волны.');return}
   const w=wpn(u),k=w.sp.kind,all=alive().sort((a,b)=>b.y-a.y);
   // цель: отмеченный тапом враг, иначе ближайший к стене
   let tg=(S.focus&&!S.focus.dead&&S.focus.y>0)?S.focus:all[0];
@@ -367,6 +368,12 @@ function step(dt){
     }else{const dx=best.x-u.x;if(Math.abs(dx)>4)u.x+=Math.sign(dx)*Math.min(Math.abs(dx),170*dt);
       u.x=Math.max(24,Math.min(W-24,u.x));u.ang=Math.atan2(best.y-u.y,best.x-u.x)}
   }
+  {const wl=IDS.map(id=>S.units[id]).filter(u=>u.w>=0&&!u.field).sort((a,b)=>a.x-b.x),GAP=62;
+    for(let k=0;k<3;k++)for(let i=0;i<wl.length-1;i++){const a=wl[i],b=wl[i+1],d=b.x-a.x;
+      if(d<GAP){const p=(GAP-d)/2;a.x-=p;b.x+=p}}
+    for(const u of wl)u.x=Math.max(28,Math.min(W-28,u.x));
+    for(let i=1;i<wl.length;i++)if(wl[i].x-wl[i-1].x<GAP)wl[i].x=Math.min(W-28,wl[i-1].x+GAP);
+    for(let i=wl.length-2;i>=0;i--)if(wl[i+1].x-wl[i].x<GAP)wl[i].x=wl[i+1].x-GAP}
   if(S.traps.some(t=>t.dur<=0)){for(const t of S.traps)if(t.dur<=0){S.fx.push({k:'txt',x:t.c*C+40,y:t.r*C+30,t:'СЛОМАНА',life:.9,max:.9});if(S.sel===t){S.sel=null;ui()}}
     S.traps=S.traps.filter(t=>t.dur>0)}
   S.enemies=S.enemies.filter(e=>!e.dead);
@@ -649,14 +656,14 @@ function hud(){
   const v={sScrap:S.scrap,sDoor:S.door,sWave:S.wave,sScore:S.score};
   for(const k in v)if(last[k]!==v[k]){$(k).textContent=v[k];last[k]=v[k]}
   for(const id of IDS){const u=S.units[id];if(u.w<0)continue;const sp=wpn(u).sp,cd=Math.ceil(u.scd),
-    txt=sp.name+'|'+cd;if(last['a'+id]===txt)continue;last['a'+id]=txt;
+    txt=sp.name+'|'+cd+'|'+!!u.out;if(last['a'+id]===txt)continue;last['a'+id]=txt;
     ab[id].innerHTML='<span class="row"><img alt="" src="'+ART['ab_'+sp.kind]+'"><span>'+sp.name+(cd?' · '+cd+' с':'')+'<small>'+UNITS[id].name+': '+sp.tip+'</small></span></span>';
-    ab[id].disabled=cd>0;ab[id].classList.toggle('on',!cd);ab[id].dataset.cd=cd||'';ab[id].setAttribute('aria-label',sp.name)}
+    ab[id].disabled=cd>0||!!u.out;ab[id].classList.toggle('on',!cd&&!u.out);ab[id].dataset.cd=cd||'';ab[id].setAttribute('aria-label',sp.name)}
   for(const id of IDS){const u=S.units[id],d=UNITS[id],hired=u.w>=0,hurt=hired&&(u.sup>0||u.ph>0),out=!!u.out;
     const hp=id==='tar'&&hired&&u.hp!=null?Math.round(100*Math.max(0,u.hp)/tmax(u)):-1;
     const st=!hired?'за '+d.weapons[0].cost:out?'выбыл до конца волны':u.sup>0?'прижат огнем':id==='tar'&&u.field?'в поле':wpn(u).name;
     const key=[hired,hurt,out,hp,st].join('|');if(last['q'+id]===key)continue;last['q'+id]=key;
-    const b=sq[id];b.className='sq'+(hired?'':' off')+(hurt?' hurt':'')+(out?' out':'');
+    const b=sq[id];b.hidden=!hired;b.className='sq'+(hired?'':' off')+(hurt?' hurt':'')+(out?' out':'');
     b.innerHTML='<img alt="" src="'+ART['pt_'+id+(hurt&&!out?'H':'')]+'"><span class="t"><b>'+d.name+'</b><small>'+st+'</small>'+(hp>=0?'<span class="hpb"><i style="width:'+hp+'%"></i></span>':'')+'</span>';
     b.setAttribute('aria-label',d.name+': '+st)}
   const nb=$('next'),dis=S.active||S.over||S.wave>=WAVES.length,
