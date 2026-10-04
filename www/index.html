@@ -237,7 +237,7 @@ function hit(e,dmg,crit){
     if(e.type==='bomber')explode(e)}
 }
 const tarOn=()=>{const T=S.units.tar;return T.w>=0&&T.field&&!T.out};
-function hurtTar(d){const T=S.units.tar;if(T.out)return;T.hp-=d;T.hurt=.25;
+function hurtTar(d){const T=S.units.tar;if(T.out)return;T.hp-=d;T.hurt=.25;T.ph=1.6;
   S.fx.push({k:'txt',x:T.x+(Math.random()*30-15),y:T.y-70,t:'-'+Math.round(d),life:.6,max:.6});
   if(T.hp<=0){T.hp=0;T.out=true;T.field=false;T.goal=null;T.jmp=null;T.x=UNITS.tar.x;T.y=HOME_Y;
     S.fx.push({k:'txt',x:T.x,y:T.y-80,t:'ТАРУК ВЫБЫЛ ДО КОНЦА ВОЛНЫ',life:1.6,max:1.6})}}
@@ -333,7 +333,7 @@ function step(dt){
   // защитники: каждый берет ближайшего к стене врага, еще не занятого другим
   const claims=new Map();
   for(const id of IDS){const u=S.units[id];if(u.w<0)continue;
-    u.cd-=dt;if(u.hurt>0)u.hurt-=dt;if(u.at>0)u.at-=dt;if(u.scd>0)u.scd=Math.max(0,u.scd-dt);
+    u.cd-=dt;if(u.hurt>0)u.hurt-=dt;if(u.ph>0)u.ph-=dt;if(u.at>0)u.at-=dt;if(u.scd>0)u.scd=Math.max(0,u.scd-dt);
     const w=wpn(u);
     if(u.out)continue;
     if(u.sup>0){u.sup-=dt;continue} // прижат огнем стрелка
@@ -628,7 +628,7 @@ function ui(){
     const cw=u.w>=0?wpn(u):null,im=i=>'<img alt="" src="'+ART['shop'+(id==='hero'?'':id)+i]+'">';
     const desc=x=>'урон '+x.dmg+', радиус '+(x.r/C).toFixed(1);
     const pt='<img class="pt" alt="" src="'+ART['pt_'+id]+'">';
-    const left=cw?pt+'<span>'+d.name+': '+cw.name+'<small>'+desc(cw)+'</small></span>'
+    const left=cw?pt+im(u.w)+'<span>'+d.name+': '+cw.name+'<small>'+desc(cw)+'</small></span>'
       :pt+'<span>Нанять: '+d.name+'<small>'+nw.name+' - '+desc(nw)+'</small></span>';
     const right=!nw?'<span class="nx">макс.</span>'
       :!cw?'<span class="nx"><b>'+nw.cost+'</b></span>'
@@ -652,7 +652,7 @@ function hud(){
     txt=sp.name+'|'+cd;if(last['a'+id]===txt)continue;last['a'+id]=txt;
     ab[id].innerHTML='<span class="row"><img alt="" src="'+ART['ab_'+sp.kind]+'"><span>'+sp.name+(cd?' · '+cd+' с':'')+'<small>'+UNITS[id].name+': '+sp.tip+'</small></span></span>';
     ab[id].disabled=cd>0;ab[id].classList.toggle('on',!cd);ab[id].dataset.cd=cd||'';ab[id].setAttribute('aria-label',sp.name)}
-  for(const id of IDS){const u=S.units[id],d=UNITS[id],hired=u.w>=0,hurt=hired&&(u.sup>0||u.hurt>0),out=!!u.out;
+  for(const id of IDS){const u=S.units[id],d=UNITS[id],hired=u.w>=0,hurt=hired&&(u.sup>0||u.ph>0),out=!!u.out;
     const hp=id==='tar'&&hired&&u.hp!=null?Math.round(100*Math.max(0,u.hp)/tmax(u)):-1;
     const st=!hired?'за '+d.weapons[0].cost:out?'выбыл до конца волны':u.sup>0?'прижат огнем':id==='tar'&&u.field?'в поле':wpn(u).name;
     const key=[hired,hurt,out,hp,st].join('|');if(last['q'+id]===key)continue;last['q'+id]=key;
