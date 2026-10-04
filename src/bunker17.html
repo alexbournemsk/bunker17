@@ -197,10 +197,10 @@ const WTIP=['Две матерые крысы. Кнопка камня - при�
   'Стрелок встает вдали и бьет по бойцам на стене. Выстрел по рукам - он замолчит.',
   'Подрывник бежит к двери. Попади по рукам - взорвется на месте.'];
 // зоны прицельного удара: [ключ, подпись, базовый шанс, множитель урона]
-const ZONES=[['head','ГОЛОВА',55,2.5],['arms','РУКИ',70,.7],['body','КОРПУС',95,1],['legs','НОГИ',75,.7]];
+const ZONES=[['head','ГОЛОВА',75,2.5],['arms','РУКИ',88,.7],['body','КОРПУС',100,1],['legs','НОГИ',90,.7]];
 const zHint=(z,e)=>z==='head'?'крит, оглушение':z==='body'?'надежно':z==='legs'?'стоп и хромота':e.type==='bomber'?'подрыв на месте':e.type==='gunner'?'не стреляет':'бьет слабее';
 const aimR=u=>wpn(u).sp.r+0;
-function zChance(u,e,z){const sp=wpn(u).sp;return Math.round(Math.max(10,Math.min(95,z[2]+(sp.acc||0)-dist(u,e)/sp.r*25)))}
+function zChance(u,e,z){const sp=wpn(u).sp;return Math.round(Math.max(10,Math.min(97,z[2]+(sp.acc||0)-dist(u,e)/sp.r*15)))}
 function aimPanel(e){const w=M?330:270,rh=M?58:44,h=rh*4;return{w,rh,h,x:Math.round(e.x>W/2?Math.max(8,e.x-46-w):Math.min(W-w-8,e.x+46)),y:Math.round(Math.max(110,Math.min(WALL-h-20,e.y-h/2)))}}
 function aimFire(z){const u=S.units.hero,e=S.aim.tg,w=wpn(u),sp=w.sp;S.aim=null;
   if(!e||e.dead)return;u.focus=e;u.ang=Math.atan2(e.y-u.y,e.x-u.x); // цель остается отмеченной и после промаха
