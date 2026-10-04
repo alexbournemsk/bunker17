@@ -525,6 +525,11 @@ function draw(){
       g.beginPath();g.moveTo(f.x1,f.y1);g.lineTo(f.x2,f.y2);g.stroke()}
     else if(f.k==='txt'){g.fillStyle='rgba(255,224,138,'+a+')';g.font='16px "Russo One",sans-serif';g.textAlign='center';g.fillText(f.t,f.x,f.y-(1-a)*18)}
     else{g.fillStyle='rgba(242,169,59,'+a*.55+')';g.beginPath();g.arc(f.x,f.y,f.r*(1.1-a*.5),0,7);g.fill()}}
+  {const now=performance.now(),fs=M?24:15;while(LOG.length&&now-LOG[0].at>4200)LOG.shift();
+    g.font=fs+'px "JetBrains Mono",monospace';g.textAlign='left';
+    LOG.forEach((l,i)=>{const k=Math.min(1,(4200-(now-l.at))/700),sh=Math.max(0,Math.floor((now-l.at)/18));
+      g.fillStyle='rgba(140,255,150,'+.9*k+')';g.shadowColor='rgba(60,255,90,'+.55*k+')';g.shadowBlur=6;
+      g.fillText(l.t.slice(0,sh),12,fs+10+i*(fs+5))});g.shadowBlur=0}
   if(S.banner&&!S.over){const a=Math.min(1,S.banner.life/.5),y=300;
     g.fillStyle='rgba(20,17,13,'+.72*a+')';g.fillRect(0,y-70,W,130);
     g.fillStyle='rgba(242,169,59,'+a+')';g.fillRect(0,y-70,W,3);g.fillRect(0,y+57,W,3);
@@ -562,7 +567,10 @@ cv.addEventListener('pointerdown',e=>{
   if(p[1]>=WALL-25&&U.w>=0){U.wx=Math.max(28,Math.min(W-28,p[0]));S.sel=null;ui();return}
   S.sel=trapAt(c,r)||null;ui();
 });
-function say(t){if(M)return;$('hint').textContent=t} // на телефоне всплывающих подсказок нет: они перекрывали кнопки
+const LOG=[]; // сообщения в стиле терминала: слева вверху на поле, сами гаснут и не перехватывают нажатия
+function say(t){if(!M)$('hint').textContent=t;const n=M?36:56,now=performance.now();let l='> ';
+  for(const w of String(t).split(' ')){if(l.length+w.length>n&&l.length>2){LOG.push({t:l,at:now});l='  '}l+=w+' '}
+  LOG.push({t:l,at:now});while(LOG.length>(M?5:6))LOG.shift()}
 
 // пульт: покупки и способности
 const buy={},ab={};
