@@ -751,7 +751,7 @@ function hud(){
   for(const k in v)if(last[k]!==v[k]){$(k).textContent=v[k];last[k]=v[k]}
   for(const id of IDS){const u=S.units[id];if(u.w<0)continue;const sp=wpn(u).sp,cd=Math.ceil(u.scd),
     txt=sp.name+'|'+cd+'|'+!!u.out;if(last['a'+id]===txt)continue;last['a'+id]=txt;
-    ab[id].innerHTML='<span class="row"><img alt="" src="'+ART['ab_'+(id==='hero'?'head':sp.kind)]+'"><span>'+sp.name+(cd?' · '+cd+' с':'')+'<small>'+UNITS[id].name+': '+sp.tip+'</small></span></span>';
+    ab[id].innerHTML='<span class="row"><img alt="" src="'+ART['ab_'+(id==='hero'&&sp.kind!=='rock'?'head':sp.kind)]+'"><span>'+sp.name+(cd?' · '+cd+' с':'')+'<small>'+UNITS[id].name+': '+sp.tip+'</small></span></span>';
     ab[id].disabled=cd>0||!!u.out;ab[id].classList.toggle('on',!cd&&!u.out);ab[id].dataset.cd=cd||'';ab[id].setAttribute('aria-label',sp.name)}
   for(const id of IDS){const u=S.units[id],d=UNITS[id],hired=u.w>=0,hurt=hired&&u.ph>0,out=!!u.out;
     const hp=hired&&u.hp!=null?Math.round(100*Math.max(0,u.hp)/tmax(u)):-1;
