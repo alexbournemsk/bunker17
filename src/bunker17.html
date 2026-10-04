@@ -62,6 +62,7 @@ button.go{background:var(--rust);border-color:var(--rust);font-family:var(--disp
 .sq .t b{display:block;font:400 14px var(--display);letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sq .t small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sq .hpb{display:block;height:5px;background:#0d0b08;margin-top:4px}.sq .hpb i{display:block;height:100%;background:var(--ok)}
+.sq.sel{border-color:var(--amber);background:#3a2a10}
 .sq.off{opacity:.6}.sq.off img{filter:grayscale(1) brightness(.45)}
 .sq.hurt{border-color:var(--rust)}.sq.hurt .t small{color:#ff785a}
 .sq.out img{filter:grayscale(1) brightness(.6)}.sq.out .hpb i{background:var(--rust)}
@@ -197,7 +198,7 @@ const bgi=new Image();bgi.onload=()=>bgc.getContext('2d').drawImage(bgi,0,0,W,H)
 let S;
 function reset(){
   S={score:0,cheat:false,scrap:60,door:100,wave:0,active:false,t:0,queue:[],enemies:[],traps:[],fx:[],
-     pick:false,sel:null,hover:null,focus:null,speed:1,paused:false,over:false,units:{}};
+     selU:'hero',pick:false,sel:null,hover:null,speed:1,paused:false,over:false,units:{}};
   for(const id of IDS)S.units[id]={id,x:UNITS[id].x,y:UNITS[id].y,w:id==='hero'?0:-1,cd:0,scd:0,ang:-Math.PI/2};
   $('over').hidden=true;ui();
 }
@@ -268,9 +269,10 @@ function special(u){
   if(u.out){say(UNITS[u.id].name+' выбыл до конца волны.');return}
   const w=wpn(u),k=w.sp.kind,all=alive().sort((a,b)=>b.y-a.y);
   // цель: отмеченный тапом враг, иначе ближайший к стене
-  let tg=(S.focus&&!S.focus.dead&&S.focus.y>0)?S.focus:all[0];
+  const F=u.focus;
+  let tg=(F&&!F.dead&&F.y>0)?F:all[0];
   if(w.sp.r){const inr=e=>dist(u,e)<=w.sp.r+EN[e.type].r; // с радиусом: метка, если достаем, иначе ближайший к бойцу
-    tg=(S.focus&&!S.focus.dead&&S.focus.y>0&&inr(S.focus))?S.focus:all.filter(inr).sort((a,b)=>dist(u,a)-dist(u,b))[0]}
+    tg=(F&&!F.dead&&F.y>0&&inr(F))?F:all.filter(inr).sort((a,b)=>dist(u,a)-dist(u,b))[0]}
   const aim=e=>{u.ang=Math.atan2(e.y-u.y,e.x-u.x)};
   const beam=(e,life)=>{const[bx,by]=MUZ[u.id+u.w]?muzzle(u):[u.x,u.y-30];S.fx.push({k:'line',x1:bx,y1:by,x2:e.x,y2:e.y,life:life||.25,max:life||.25,strong:1})};
   let ok=!!tg;
@@ -341,7 +343,7 @@ function step(dt){
     let best=null,bs=-1e9;
     for(const e of S.enemies){if(e.dead||e.y<0)continue;
       const reach=dist(u,e)<=w.r+EN[e.type].r;
-      const sc=e.y-170*(claims.get(e)||0)+(e===S.focus?2000:0)+(reach?120:0)-Math.abs(e.x-u.x)*.15;
+      const sc=e.y-170*(claims.get(e)||0)+(e===u.focus?2000:0)+(reach?120:0)-Math.abs(e.x-u.x)*.15;
       if(sc>bs){bs=sc;best=e}}
     if(!best)continue;
     claims.set(best,(claims.get(best)||0)+1);
@@ -362,7 +364,7 @@ function step(dt){
   if(S.traps.some(t=>t.dur<=0)){for(const t of S.traps)if(t.dur<=0){S.fx.push({k:'txt',x:t.c*C+40,y:t.r*C+30,t:'СЛОМАНА',life:.9,max:.9});if(S.sel===t){S.sel=null;ui()}}
     S.traps=S.traps.filter(t=>t.dur>0)}
   S.enemies=S.enemies.filter(e=>!e.dead);
-  if(S.focus&&S.focus.dead)S.focus=null;
+  for(const id of IDS){const u=S.units[id];if(u.focus&&u.focus.dead)u.focus=null}
   if(S.later&&S.later.length){for(const l of S.later){l.t-=dt;if(l.t<=0)l.f()}S.later=S.later.filter(l=>l.t>0)}
   for(const f of S.fx)f.life-=dt;S.fx=S.fx.filter(f=>f.life>0);
   {const st=doorStage();if(st>(S.ds||0)){spr('wave',320,855,230,.5);S.fx.push({k:'txt',x:320,y:800,t:st>=5?'ДВЕРЬ ПРОБИТА':'ДВЕРЬ ПОВРЕЖДЕНА',life:1.1,max:1.1})}S.ds=st}
@@ -413,13 +415,14 @@ $('nameForm').addEventListener('submit',async ev=>{ev.preventDefault();
 $('pname').addEventListener('keydown',e=>e.stopPropagation());
 function retry(){const c=S.cp;if(!c)return;
   S.scrap=c.scrap;S.door=c.door;S.wave=c.wave;S.traps=c.traps.map(t=>({...t}));S.score=Math.max(0,(c.score||0)-200); // повтор волны стоит 200 очков
-  for(const id of IDS){const u=S.units[id];u.w=c.units[id];u.cd=0;u.scd=0;u.x=UNITS[id].x;u.y=UNITS[id].y;u.field=false;u.goal=null;u.out=false;u.hp=null;u.sup=0;u.at=0;u.jmp=null}
-  S.rally=false;S.later=[];
+  for(const id of IDS){const u=S.units[id];u.w=c.units[id];u.cd=0;u.scd=0;u.x=UNITS[id].x;u.y=UNITS[id].y;u.field=false;u.goal=null;u.out=false;u.hp=null;u.sup=0;u.at=0;u.jmp=null;u.focus=null}
+  S.later=[];
   S.active=false;S.over=false;S.queue=[];S.enemies=[];S.fx=[];S.focus=null;S.sel=null;S.paused=false;
   $('over').hidden=true;ui();say('Волна '+(c.wave+1)+': все возвращено к ее началу. Можно перевооружиться и запустить.')}
 
 const doorStage=()=>{const k=S.door/100;return k>.83?0:k>.67?1:k>.5?2:k>.33?3:k>0?4:5};
 function draw(){
+  const SU=S.units[S.selU]||S.units.hero,FOC=SU.focus;
   g.drawImage(bgc,0,0);
   {const st=doorStage(),di=IMG['door'+st];if(st&&ready(di))g.drawImage(di,223,790,194,131)}
   if(S.pick&&S.hover){const[c,r]=S.hover;
@@ -453,9 +456,9 @@ function draw(){
         g.drawImage(ei,nf>1?fw:0,0,fw,ei.height,-Math.round(fw*(nf>1?.62:.5)),-ei.height-(atWall?0:Math.abs(Math.sin(ph))*3),fw,ei.height)}
       g.restore();
       if(e.stun>0){g.fillStyle='#ffe08a';g.font='16px "Russo One",sans-serif';g.textAlign='center';g.fillText('✶ ✶',e.x,e.y+b.r-ei.height-4)}
-      if(e===S.focus||e.slow){g.strokeStyle=e===S.focus?'#f2a93b':'#7fd0e0';g.lineWidth=2;g.beginPath();g.ellipse(e.x,e.y+b.r,b.r+6,7,0,0,7);g.stroke()}}
+      if(e===FOC||e.slow){g.strokeStyle=e===FOC?'#f2a93b':'#7fd0e0';g.lineWidth=2;g.beginPath();g.ellipse(e.x,e.y+b.r,b.r+6,7,0,0,7);g.stroke()}}
     else{
-    g.fillStyle=b.col;g.strokeStyle=e===S.focus?'#f2a93b':e.slow?'#7fd0e0':'#17130e';g.lineWidth=e===S.focus?3:2;g.beginPath();
+    g.fillStyle=b.col;g.strokeStyle=e===FOC?'#f2a93b':e.slow?'#7fd0e0':'#17130e';g.lineWidth=e===FOC?3:2;g.beginPath();
     if(e.type==='rat')g.ellipse(e.x,e.y,b.r*.8,b.r*1.2,0,0,7);
     else if(e.type==='brute'||e.type==='boss')g.rect(e.x-b.r,e.y-b.r,b.r*2,b.r*2);
     else g.arc(e.x,e.y,b.r,0,7);
@@ -493,7 +496,7 @@ function draw(){
       g.fillStyle='#f2a93b';g.fillRect(T.goal.x-1,T.goal.y-22,3,22);g.beginPath();g.moveTo(T.goal.x+2,T.goal.y-22);g.lineTo(T.goal.x+18,T.goal.y-16);g.lineTo(T.goal.x+2,T.goal.y-10);g.fill()}
     if(T.w>=0&&T.hp!=null&&(T.hp<tmax(T)||T.field)){const w=54,x=T.x-w/2,y=T.y-98;g.fillStyle='#17130e';g.fillRect(x-1,y-1,w+2,7);g.fillStyle=T.out?'#c2552d':'#8fbf5a';g.fillRect(x,y,w*Math.max(0,T.hp)/tmax(T),5)}
     for(const id of IDS){const u=S.units[id];if(u.w>=0&&u.sup>0){g.fillStyle='#ff785a';g.font='13px "Russo One",sans-serif';g.textAlign='center';g.fillText('ПРИЖАТ',u.x,u.y-90)}}
-    if(S.rally){g.fillStyle='rgba(242,169,59,.10)';g.fillRect(0,0,W,WALL);g.fillStyle='#ffe08a';g.font='18px "Russo One",sans-serif';g.textAlign='center';g.fillText('ТАП ПО ПОЛЮ - ТОЧКА СБОРА ТАРУКА',W/2,40);g.fillText('ТАП ПО СТЕНЕ - ОТОЗВАТЬ',W/2,64)}}
+    if(SU.w>=0&&!SU.out){g.strokeStyle='#ffe08a';g.lineWidth=2;g.beginPath();g.ellipse(SU.x,SU.y+21,26,9,0,0,7);g.stroke()}}
   {const k=Math.max(0,S.door/100),x=120,y=926,w=400,h=18;
     g.fillStyle='#17130e';g.fillRect(x-2,y-2,w+4,h+4);
     g.fillStyle=k>.5?'#8fbf5a':k>.25?'#f2a93b':'#c2552d';g.fillRect(x,y,w*k,h);
@@ -527,11 +530,6 @@ cv.addEventListener('pointerleave',()=>S.hover=null);
 cv.addEventListener('pointerdown',e=>{
   if(S.over)return;const p=pt(e),[c,r]=cellOf(p);
   if(S.shop){S.shop=false;ui()}
-  if(S.rally){const T=S.units.tar;S.rally=false;
-    if(T.out)say('Тарук выбыл до конца волны.');
-    else if(p[1]<WALL-25){T.goal={x:Math.max(30,Math.min(W-30,p[0])),y:Math.max(70,p[1])};if(!T.field){T.field=true;T.jmp={t:0,dur:.45,a:HOME_Y,b:WALL-10}}else if(T.jmp&&T.jmp.b>T.jmp.a)T.jmp={t:0,dur:.3,a:T.y,b:WALL-10};say('Тарук идет в точку сбора и держит круг вокруг нее.')}
-    else{T.goal=null;say('Тарук возвращается на стену.')}
-    ui();return}
   if(S.pick){S.sel=null;
     if(!canBuild(c,r))say(trapAt(c,r)?'Клетка занята.':'Ловушки ставятся только на поле перед стеной.');
     else if(S.scrap<TRAP)say('Не хватает скрапа: нужно '+TRAP+'.');
@@ -539,7 +537,14 @@ cv.addEventListener('pointerdown',e=>{
     return}
   let near=null,nd=1e9;
   for(const en of S.enemies){const d=Math.hypot(en.x-p[0],en.y-p[1]);if(d<EN[en.type].r+26&&d<nd){near=en;nd=d}}
-  if(near){S.focus=near;S.sel=null;ui();say('Отряд идет на отмеченную цель.');return}
+  const U=S.units[S.selU]||S.units.hero;
+  if(S.selU==='tar'&&U.w>=0){ // выбран Тарук: тап по полю - точка сбора, тап по стене - отзыв
+    if(U.out)say('Тарук выбыл до конца волны.');
+    else if(p[1]<WALL-25){U.goal={x:Math.max(30,Math.min(W-30,p[0])),y:Math.max(70,p[1])};
+      if(!U.field){U.field=true;U.jmp={t:0,dur:.45,a:HOME_Y,b:WALL-10}}else if(U.jmp&&U.jmp.b>U.jmp.a)U.jmp={t:0,dur:.3,a:U.y,b:WALL-10}}
+    else if(U.field){U.goal=null;say('Тарук возвращается на стену.')}
+    S.sel=null;ui();return}
+  if(near){U.focus=near;S.sel=null;ui();say(UNITS[S.selU].name+' бьет отмеченную цель.');return}
   S.sel=trapAt(c,r)||null;ui();
 });
 function say(t){const h=$('hint');h.textContent=t;if(M){h.classList.add('show');clearTimeout(say.t);say.t=setTimeout(()=>h.classList.remove('show'),2600)}}
@@ -559,10 +564,8 @@ for(const id of IDS){
 }
 const sq={};
 for(const id of IDS){const b=document.createElement('button');b.className='sq';sq[id]=b;$('squad').appendChild(b);
-  b.onclick=()=>{if(M){S.shop=true;S.pick=false;ui()}}}
-const rb=document.createElement('button');$('abil').appendChild(rb);
-rb.innerHTML='<span class="row">'+(M?'<b class="gl">⚑</b>':'')+'<span>Точка сбора<small>Тарук: спуск в поле или отзыв на стену</small></span></span>';rb.setAttribute('aria-label','Точка сбора Тарука');
-rb.onclick=()=>{S.rally=!S.rally;S.pick=false;ui();if(S.rally)say('Ткни в поле - Тарук спустится туда. Ткни в стену - вернется.')};
+  b.onclick=()=>{if(S.units[id].w<0)return;S.selU=id;S.pick=false;S.shop=false;ui();
+    say(id==='tar'?'Тарук: тап по полю - идти туда и держать место, тап по стене - вернуться.':UNITS[id].name+': тап по врагу - бить его первым.')}}
 const tb=document.createElement('button');$('build').appendChild(tb);
 tb.innerHTML='<span class="row"><img alt="" style="height:auto" src="'+ART.trap+'"><span>Ловушка<small>замедляет, ранит, изнашивается</small></span><span class="nx"><b>'+TRAP+'</b></span></span>';
 tb.onclick=()=>{S.pick=!S.pick;S.sel=null;if(M)S.shop=false;ui()};
@@ -577,7 +580,7 @@ function shiftWave(d){if(S.over){if(S.door<=0&&S.cp)retry();else return}
   const cur=S.active?S.wave:S.wave+1,n=Math.max(1,Math.min(WAVES.length,cur+d));
   const earn=w=>WAVES[w-1].reduce((a,[t,c])=>a+c*EN[t].reward,0)+30+5*w;
   if(n>cur)S.scrap+=earn(cur);else if(n<cur)S.scrap=Math.max(0,S.scrap-earn(n));
-  S.wave=n-1;S.active=false;S.queue=[];S.enemies=[];S.focus=null;ui();say('Выбрана волна '+n+'. Нажми кнопку волны, чтобы запустить.')}
+  S.wave=n-1;S.active=false;S.queue=[];S.enemies=[];for(const id of IDS)S.units[id].focus=null;ui();say('Выбрана волна '+n+'. Нажми кнопку волны, чтобы запустить.')}
 $('wPrev').onclick=()=>shiftWave(-1);$('wNext').onclick=()=>shiftWave(1);
 $('pause').onclick=()=>{S.paused=!S.paused;ui()};
 $('add500').onclick=()=>{if(!S.over){S.scrap+=500;S.cheat=true}};
@@ -598,7 +601,7 @@ addEventListener('keydown',e=>{
   if(e.key===' '){e.preventDefault();if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();startWave()}
   else if(e.key==='p'||e.key==='з')$('pause').click();
   else if('123'.includes(e.key))special(S.units[IDS[+e.key-1]]);
-  else if(e.key==='Escape'){S.pick=false;S.sel=null;S.focus=null;ui()}
+  else if(e.key==='Escape'){S.pick=false;S.sel=null;for(const id of IDS)S.units[id].focus=null;ui()}
 });
 
 // телефон: волна, скорость и пауза - наверх; отладка - в панель под кнопкой DEV; магазин - в панель под кнопкой
@@ -627,7 +630,7 @@ function ui(){
       :'<span class="nx">→'+im(u.w+1)+'<b>'+nw.cost+'</b></span>';
     b.innerHTML='<span class="row">'+left+right+'</span>';
     ab[id].hidden=u.w<0}
-  tb.classList.toggle('on',S.pick);rb.hidden=S.units.tar.w<0;rb.classList.toggle('on',!!S.rally);
+  tb.classList.toggle('on',S.pick);
   $('build').hidden=!!S.sel||(M&&!S.shop);$('sel').hidden=!S.sel;
   if(M){$('mSpeed').textContent='x'+S.speed;$('mSpeed').classList.toggle('on',S.speed>1);$('mShop').classList.toggle('on',!!S.shop)}
   if(S.sel){$('sell').innerHTML='Продать ловушку · +'+sellTrap(S.sel)+'<small>осталось '+Math.round(100*S.sel.dur/DUR)+'% прочности</small>';say('Ловушка: враги в этой клетке идут вчетверо медленнее и получают '+WIRE+' урона в секунду. Проволока изнашивается, пока в ней враги.')}
@@ -647,10 +650,10 @@ function hud(){
   for(const id of IDS){const u=S.units[id],d=UNITS[id],hired=u.w>=0,hurt=hired&&(u.sup>0||u.ph>0),out=!!u.out;
     const hp=id==='tar'&&hired&&u.hp!=null?Math.round(100*Math.max(0,u.hp)/tmax(u)):-1;
     const st=!hired?'за '+d.weapons[0].cost:out?'выбыл до конца волны':u.sup>0?'прижат огнем':id==='tar'&&u.field?'в поле':wpn(u).name;
-    const key=[hired,hurt,out,hp,st].join('|');if(last['q'+id]===key)continue;last['q'+id]=key;
-    const b=sq[id];b.hidden=!hired;b.className='sq'+(hired?'':' off')+(hurt?' hurt':'')+(out?' out':'');
+    const key=[hired,hurt,out,hp,st,S.selU===id].join('|');if(last['q'+id]===key)continue;last['q'+id]=key;
+    const b=sq[id];b.hidden=!hired;b.className='sq'+(S.selU===id?' sel':'')+(hired?'':' off')+(hurt?' hurt':'')+(out?' out':'');
     b.innerHTML='<img alt="" src="'+ART['pt_'+id+(hurt&&!out?'H':'')]+'"><span class="t"><b>'+d.name+'</b><small>'+st+'</small>'+(hp>=0?'<span class="hpb"><i style="width:'+hp+'%"></i></span>':'')+'</span>';
-    b.setAttribute('aria-label',d.name+': '+st)}
+    b.setAttribute('aria-label',d.name+': '+st);b.setAttribute('aria-pressed',S.selU===id)}
   const nb=$('next'),dis=S.active||S.over||S.wave>=WAVES.length,
     txt=S.active?(M?'Бой ':'Идет волна ')+S.wave:'Волна '+Math.min(S.wave+1,WAVES.length);
   if(nb.disabled!==dis)nb.disabled=dis;
