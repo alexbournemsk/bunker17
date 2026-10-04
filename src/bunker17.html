@@ -477,7 +477,7 @@ function draw(){
     if(ready(hi)){g.fillStyle='rgba(0,0,0,.35)';g.beginPath();g.ellipse(u.x,u.y+20,20,7,0,0,7);g.fill();
       g.save();if(u.out)g.globalAlpha=.4;g.translate(Math.round(u.x+(u.hurt>0?Math.sin(performance.now()/18)*3:0)),Math.round(u.y+24-(u.jmp?Math.sin(Math.PI*Math.min(1,u.jmp.t/u.jmp.dur))*(u.jmp.b<u.jmp.a?44:20):0)));if(u.jmp)g.rotate((u.jmp.b<u.jmp.a?-.12:.1)*Math.sin(Math.PI*Math.min(1,u.jmp.t/u.jmp.dur)));if(u.hurt>0)g.rotate(Math.sin(performance.now()/30)*.04);if(UA[id+u.w]?Math.cos(u.ang)>.15:Math.cos(u.ang)<-.15)g.scale(-1,1);
       const ua=UA[id+u.w],uw=UW[id+u.w],wim=IMG['w_'+id+u.w];
-      if(uw&&u.mv>0&&!(u.at>0)&&!u.jmp&&ready(wim)){const fi=Math.floor((u.walkd||0)/9)%4;g.drawImage(wim,fi*uw[0],0,uw[0],wim.height,-uw[1],-uw[2],uw[0],wim.height)}
+      if(uw&&u.mv>0&&!(u.at>0)&&!u.jmp&&ready(wim)){const fi=Math.floor((u.walkd||0)/22)%4;g.drawImage(wim,fi*uw[0],0,uw[0],wim.height,-uw[1],-uw[2],uw[0],wim.height)}
       else if(ua){const fw=hi.width/ua.n,fi=u.at>.44?1:u.at>.32?2:u.at>0?3:0;g.drawImage(hi,fi*fw,0,fw,hi.height,-ua.ax,-hi.height,fw,hi.height)}
       else g.drawImage(hi,-Math.round(hi.width*.42),-hi.height);
       g.restore();
