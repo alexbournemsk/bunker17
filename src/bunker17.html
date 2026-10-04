@@ -151,11 +151,34 @@ button.go{background:var(--rust);border-color:var(--rust);font-family:var(--disp
 <script>
 (()=>{
 const M=matchMedia('(max-width:640px)').matches;if(M)document.documentElement.classList.add('m');
-const C=80,COLS=8,ROWS=12,W=640,H=960,WALL=695,TRAP=60,SLOW=.25,WIRE=6,DUR=20;
+const C=80,COLS=8,ROWS=12,W=640,H=960,WALL=695;
+const TRAP=60,SLOW=.25,WIRE=6,DUR=20; // БАЛАНС ловушки: цена, скорость врага в колючке, урон в секунду, запас прочности в секундах
 const sellTrap=t=>Math.round(TRAP*.6*Math.max(0,t.dur)/DUR);
 const cv=document.getElementById('cv'),g=cv.getContext('2d');
 const $=id=>document.getElementById(id);
 
+// ===== БАЛАНС: все числа сложности в одном месте. Оружие - в UNITS, враги - в EN, волны - в WAVES, зоны прицела - в ZONES =====
+const BAL={
+  scrap0:60,              // скрап на старте
+  waveScrap:[30,5],       // награда за волну: база + за каждый номер волны
+  waveHp:.12,             // прирост здоровья врагов за каждую волну
+  retryCost:200,          // очков за повтор волны
+  hp:{hero:100,bor:120,tar:[170,240]}, // здоровье бойцов; у Тарука - с молотом и с кувалдой
+  tarRegen:14,            // лечение Тарука на стене, в секунду
+  tarTaken:2,             // множитель урона врагов по Таруку в поле
+  wallSpeed:170,          // скорость бойцов вдоль стены
+  wallGap:62,             // минимум между бойцами на стене
+  crit:[.1,2],            // шанс и множитель крита обычной атаки
+  knock:[160,350],        // отброс молота и кувалды
+  gunner:{dmg:6,dmgTar:8,rate:1.8,prep:.6,tarRange:420}, // стрелок: урон бойцу на стене, урон Таруку, интервал, пауза перед первым выстрелом
+  bomber:{dmg:40,r:95,tarDmg:55,tarR:100,door:18},       // подрывник: урон соседям, радиус, урон Таруку, урон двери
+  aim:{slowmo:.12,        // скорость времени в прицеле
+    distPen:15,cap:97,    // штраф шанса на краю радиуса и потолок шанса
+    missCd:.5,            // доля перезарядки при промахе
+    headStun:1.5,rockHeadStun:2,rockBodyStun:.5, // оглушение: голова, голова камнем, корпус камнем
+    legsStop:2,legsTime:10,legsSpeed:.22,        // ноги: стоит, потом хромает (всего секунд), скорость хромого
+    armsTime:8,armsMult:.5}                      // руки: время и множитель урона
+};
 // радиус в клетках: 1 клетка = 80
 const UNITS={
   hero:{name:'Rust',col:'#3f6a8a',x:320,y:741,weapons:[
@@ -191,8 +214,9 @@ const EN={
   gunner:{hp:70,speed:40,reward:16,atk:3,r:14,col:'#5a7fa8'}, // встает на середине поля и стреляет по защитникам
   bomber:{hp:45,speed:95,reward:14,atk:0,r:14,col:'#c8402a'}  // бежит к двери и взрывается
 };
-const GUNY=330,HOME_Y=750,GUARD=150,TSPD=130,HOLD=3,AGGRO=150;
-const tmax=u=>u.id==='hero'?100:u.id==='bor'?120:u.w>0?240:170; // здоровье бойца
+const HOME_Y=750;
+const GUNY=330,GUARD=150,TSPD=130,HOLD=3,AGGRO=150; // БАЛАНС: линия стрелков; у Тарука в поле - радиус охраны, скорость, сколько врагов держит, радиус, с которого враги на него сворачивают
+const tmax=u=>u.id==='tar'?BAL.hp.tar[u.w>0?1:0]:BAL.hp[u.id]; // здоровье бойца
 // первые волны учат прицельному удару: по одной новой задаче на волну
 const WTIP=['Две матерые крысы. Кнопка камня - прицельный бросок: выбери цель, потом зону. Ноги - замедлить.',
   'Крысы и рейдер-разведчик. У рейдера пистолет - сними его.',
@@ -202,20 +226,20 @@ const WTIP=['Две матерые крысы. Кнопка камня - при�
 const ZONES=[['head','ГОЛОВА',75,2.5],['arms','РУКИ',88,.7],['body','КОРПУС',100,1],['legs','НОГИ',90,.7]];
 const zHint=(z,e)=>z==='head'?'крит, оглушение':z==='body'?'надежно':z==='legs'?'стоп и хромота':e.type==='bomber'?'подрыв на месте':e.type==='gunner'?'не стреляет':'бьет слабее';
 const aimR=u=>wpn(u).sp.r+0;
-function zChance(u,e,z){const sp=wpn(u).sp;return Math.round(Math.max(10,Math.min(97,z[2]+(sp.acc||0)-dist(u,e)/sp.r*15)))}
+function zChance(u,e,z){const sp=wpn(u).sp;return Math.round(Math.max(10,Math.min(BAL.aim.cap,z[2]+(sp.acc||0)-dist(u,e)/sp.r*BAL.aim.distPen)))}
 function aimPanel(e){const w=M?330:270,rh=M?58:44,h=rh*4;return{w,rh,h,x:Math.round(e.x>W/2?Math.max(8,e.x-46-w):Math.min(W-w-8,e.x+46)),y:Math.round(Math.max(110,Math.min(WALL-h-20,e.y-h/2)))}}
 function aimFire(z){const u=S.units.hero,e=S.aim.tg,w=wpn(u),sp=w.sp;S.aim=null;
   if(!e||e.dead)return;u.focus=e;u.ang=Math.atan2(e.y-u.y,e.x-u.x); // цель остается отмеченной и после промаха
   const[bx,by]=MUZ[u.id+u.w]?muzzle(u):[u.x,u.y-30],ok=Math.random()*100<zChance(u,e,z);
   S.fx.push({k:'line',x1:bx,y1:by,x2:e.x+(ok?0:26),y2:e.y-(ok?10:60),life:.22,max:.22,strong:1});
-  if(!ok){u.scd=sp.cd/2;S.fx.push({k:'txt',x:e.x,y:e.y-40,t:'ПРОМАХ',life:.8,max:.8});return}
+  if(!ok){u.scd=sp.cd*BAL.aim.missCd;S.fx.push({k:'txt',x:e.x,y:e.y-40,t:'ПРОМАХ',life:.8,max:.8});return}
   u.scd=sp.cd;const k=z[0];
   if(k==='arms'&&e.type==='bomber'){S.fx.push({k:'txt',x:e.x,y:e.y-40,t:'ПОДРЫВ',life:.9,max:.9});explode(e);return}
   hit(e,sp.dmg*z[3],k==='head');
-  if(k==='head')e.stun=Math.max(e.stun||0,sp.kind==='rock'?2:1.5);
-  else if(k==='legs'){e.crip=10;e.stun=Math.max(e.stun||0,2);S.fx.push({k:'txt',x:e.x,y:e.y-40,t:'ХРОМАЕТ',life:.9,max:.9})}
-  else if(k==='arms'){e.disarm=8;S.fx.push({k:'txt',x:e.x,y:e.y-40,t:e.type==='gunner'?'НЕ СТРЕЛЯЕТ':'ОСЛАБЛЕН',life:.9,max:.9})}
-  else if(sp.kind==='rock')e.stun=Math.max(e.stun||0,.5);
+  if(k==='head')e.stun=Math.max(e.stun||0,sp.kind==='rock'?BAL.aim.rockHeadStun:BAL.aim.headStun);
+  else if(k==='legs'){e.crip=BAL.aim.legsTime;e.stun=Math.max(e.stun||0,BAL.aim.legsStop);S.fx.push({k:'txt',x:e.x,y:e.y-40,t:'ХРОМАЕТ',life:.9,max:.9})}
+  else if(k==='arms'){e.disarm=BAL.aim.armsTime;S.fx.push({k:'txt',x:e.x,y:e.y-40,t:e.type==='gunner'?'НЕ СТРЕЛЯЕТ':'ОСЛАБЛЕН',life:.9,max:.9})}
+  else if(sp.kind==='rock')e.stun=Math.max(e.stun||0,BAL.aim.rockBodyStun);
   spr('hit',e.x,e.y-12,46,.22)}
 function aimTap(p){const u=S.units.hero,A=S.aim;
   if(A.tg&&!A.tg.dead){const P=aimPanel(A.tg);
@@ -243,7 +267,7 @@ const bgi=new Image();bgi.onload=()=>bgc.getContext('2d').drawImage(bgi,0,0,W,H)
 
 let S;
 function reset(){
-  S={score:0,cheat:false,scrap:60,door:100,wave:0,active:false,t:0,queue:[],enemies:[],traps:[],fx:[],
+  S={score:0,cheat:false,scrap:BAL.scrap0,door:100,wave:0,active:false,t:0,queue:[],enemies:[],traps:[],fx:[],
      selU:'hero',pick:false,sel:null,hover:null,speed:1,paused:false,over:false,units:{}};
   for(const id of IDS)S.units[id]={id,x:UNITS[id].x,y:UNITS[id].y,w:id==='hero'?0:-1,cd:0,scd:0,ang:-Math.PI/2};
   $('over').hidden=true;ui();
@@ -260,7 +284,7 @@ function startWave(){
   ui();
 }
 function spawn(type,o){
-  const e=EN[type],k=(1+.12*(S.wave-1))*((o&&o.hp)||1);
+  const e=EN[type],k=(1+BAL.waveHp*(S.wave-1))*((o&&o.hp)||1);
   const x=type==='boss'?320:Math.floor(Math.random()*COLS)*C+40+(Math.random()*30-15);
   S.enemies.push({type,gy:GUNY+Math.round(Math.random()*90-45),x,y:-30,hp:e.hp*k,max:e.hp*k,slow:false,acd:0,drop:o&&o.drop});
 }
@@ -281,13 +305,13 @@ function hurtU(T,d){if(T.out||T.w<0)return;if(T.hp==null)T.hp=tmax(T);T.hp-=d;T.
 const hurtTar=d=>hurtU(S.units.tar,d);
 function explode(e){if(e.boomed)return;e.boomed=true;e.dead=true;
   spr('wave',e.x,e.y,210,.45);S.fx.push({k:'boom',x:e.x,y:e.y,r:60,life:.3,max:.3});
-  for(const o of S.enemies)if(o!==e&&!o.dead&&Math.hypot(o.x-e.x,o.y-e.y)<95)hit(o,40);
-  const T=S.units.tar;if(tarOn()&&Math.hypot(T.x-e.x,T.y-e.y)<100)hurtTar(55);
-  if(e.y>=WALL-40){S.door-=18;S.fx.push({k:'txt',x:e.x,y:WALL-10,t:'ВЗРЫВ',life:.8,max:.8})}}
+  for(const o of S.enemies)if(o!==e&&!o.dead&&Math.hypot(o.x-e.x,o.y-e.y)<BAL.bomber.r)hit(o,BAL.bomber.dmg);
+  const T=S.units.tar;if(tarOn()&&Math.hypot(T.x-e.x,T.y-e.y)<BAL.bomber.tarR)hurtTar(BAL.bomber.tarDmg);
+  if(e.y>=WALL-40){S.door-=BAL.bomber.door;S.fx.push({k:'txt',x:e.x,y:WALL-10,t:'ВЗРЫВ',life:.8,max:.8})}}
 function gunShot(e){const T=S.units.tar;let tx,ty;
-  if(tarOn()&&Math.hypot(T.x-e.x,T.y-e.y)<420){hurtTar(8);tx=T.x;ty=T.y-30}
+  if(tarOn()&&Math.hypot(T.x-e.x,T.y-e.y)<BAL.gunner.tarRange){hurtTar(BAL.gunner.dmgTar);tx=T.x;ty=T.y-30}
   else{const c=IDS.map(id=>S.units[id]).filter(u=>u.w>=0&&!u.out&&!u.field);if(!c.length)return;
-    const u=c[Math.floor(Math.random()*c.length)];hurtU(u,6);tx=u.x;ty=u.y-30}
+    const u=c[Math.floor(Math.random()*c.length)];hurtU(u,BAL.gunner.dmg);tx=u.x;ty=u.y-30}
   const f=GUNF.fire,mx=e.x+(e.x>W/2?-1:1)*f[2],my=e.y+EN.gunner.r+4+f[3];e.fire=.14;
   S.fx.push({k:'line',x1:mx,y1:my,x2:tx,y2:ty,life:.12,max:.12,strong:1});spr('shot',mx,my,30,.16)}
 const dist=(u,e)=>Math.hypot(e.x-u.x,e.y-u.y);
@@ -302,9 +326,9 @@ function shotFx(u,e,melee,strong){
   else{const[mx,my]=muzzle(u);spr('shot',mx,my,34,.16);S.fx.push({k:'line',x1:mx,y1:my,x2:e.x,y2:e.y,life:.09,max:.09,strong})}
 }
 function attack(u,e,mult,forceCrit){
-  const w=wpn(u),crit=forceCrit||Math.random()<.1;
+  const w=wpn(u),crit=forceCrit||Math.random()<BAL.crit[0];
   u.ang=Math.atan2(e.y-u.y,e.x-u.x);
-  const land=()=>{hit(e,w.dmg*mult*(crit?2:1),crit);shotFx(u,e,w.melee,mult>1||crit)};
+  const land=()=>{hit(e,w.dmg*mult*(crit?BAL.crit[1]:1),crit);shotFx(u,e,w.melee,mult>1||crit)};
   // у бойца с анимацией удара урон приходит в момент удара, а не в начале замаха
   if(UA[u.id+u.w]){if(!(u.at>0))u.at=.58;(S.later||(S.later=[])).push({t:.27,f:land})}else land();
 }
@@ -341,7 +365,7 @@ function special(u){
   else if(k==='head'){aim(tg);hit(tg,w.dmg*8,true);beam(tg,.4)}
   else if(k==='knock'||k==='knockAll'){const R=w.sp.r,list=all.filter(e=>dist(u,e)<=R+EN[e.type].r);
     ok=list.length>0;
-    for(const e of list){hit(e,w.dmg);knockBack(e,k==='knock'?160:350)}
+    for(const e of list){hit(e,w.dmg);knockBack(e,k==='knock'?BAL.knock[0]:BAL.knock[1])}
     if(ok)spr(k==='knockAll'?'waveb':'wave',u.x,u.y-30,R*2.2,.5)}
   else if(k==='blast'){const list=all.filter(e=>dist(u,e)<=w.sp.r+EN[e.type].r);ok=list.length>0;
     for(const e of list){aim(e);hit(e,w.dmg*3);beam(e,.15)}}
@@ -367,14 +391,14 @@ function step(dt){
     if(tOn&&e.type!=='rat'){const td=Math.hypot(T.x-e.x,T.y-e.y);
       if(e.type==='bomber'){if(td<32+b.r){explode(e);continue}}
       else if(td<AGGRO&&!(e.type==='gunner'&&e.y>=e.gy)&&holders<HOLD){holders++;e.hold=true;
-        if(td>30+b.r){const st=b.speed*(e.slow?SLOW:1)*(e.crip>0?.22:1)*dt;e.x+=(T.x-e.x)/td*st;e.y+=(T.y-e.y)/td*st} // сворачивает к Таруку
-        else{e.fight=true;e.acd-=dt;if(e.acd<=0){e.acd=1;hurtTar(b.atk*2*(e.disarm>0?.5:1));spr('hit',T.x,T.y-30,34,.2)}}
+        if(td>30+b.r){const st=b.speed*(e.slow?SLOW:1)*(e.crip>0?BAL.aim.legsSpeed:1)*dt;e.x+=(T.x-e.x)/td*st;e.y+=(T.y-e.y)/td*st} // сворачивает к Таруку
+        else{e.fight=true;e.acd-=dt;if(e.acd<=0){e.acd=1;hurtTar(b.atk*BAL.tarTaken*(e.disarm>0?BAL.aim.armsMult:1));spr('hit',T.x,T.y-30,34,.2)}}
         continue}}
-    if(e.type==='gunner'&&e.y>=e.gy){e.gs=(e.gs||0)+dt;if(e.fire>0)e.fire-=dt;if(e.disarm>0||e.gs<.6)continue;e.acd-=dt;if(e.acd<=0){e.acd=1.8;gunShot(e)}continue}
+    if(e.type==='gunner'&&e.y>=e.gy){e.gs=(e.gs||0)+dt;if(e.fire>0)e.fire-=dt;if(e.disarm>0||e.gs<BAL.gunner.prep)continue;e.acd-=dt;if(e.acd<=0){e.acd=BAL.gunner.rate;gunShot(e)}continue}
     if(e.y>=WALL&&e.type==='bomber'){explode(e);continue}
     if(e.y>=WALL){e.y=WALL;e.acd-=dt;
-      if(e.acd<=0){e.acd=1;S.door-=b.atk*(e.disarm>0?.5:1);S.fx.push({k:'boom',x:e.x,y:WALL+22,r:16,life:.15,max:.15})}}
-    else e.y+=b.speed*(e.slow?SLOW:1)*(e.crip>0?.22:1)*dt
+      if(e.acd<=0){e.acd=1;S.door-=b.atk*(e.disarm>0?BAL.aim.armsMult:1);S.fx.push({k:'boom',x:e.x,y:WALL+22,r:16,life:.15,max:.15})}}
+    else e.y+=b.speed*(e.slow?SLOW:1)*(e.crip>0?BAL.aim.legsSpeed:1)*dt
   }
   // защитники: каждый берет ближайшего к стене врага, еще не занятого другим
   const claims=new Map();
@@ -384,7 +408,7 @@ function step(dt){
     if(u.out)continue;
     if(u.hp==null)u.hp=tmax(u);
     if(id==='tar'){if(u.hp==null)u.hp=tmax(u);
-      if(!u.field&&u.hp<tmax(u))u.hp=Math.min(tmax(u),u.hp+14*dt);
+      if(!u.field&&u.hp<tmax(u))u.hp=Math.min(tmax(u),u.hp+BAL.tarRegen*dt);
       if(u.field){
         // прыжок со стены в поле и подъем обратно
         if(u.jmp){u.jmp.t+=dt;const k=Math.min(1,u.jmp.t/u.jmp.dur),e2=k*k*(3-2*k);u.y=u.jmp.a+(u.jmp.b-u.jmp.a)*e2;
@@ -398,7 +422,7 @@ function step(dt){
         if(dd>stop&&!(u.at>0)){const st=Math.min(dd-stop,TSPD*dt);u.x+=(dst.x-u.x)/dd*st;u.y+=(dst.y-u.y)/dd*st;u.mv=.15;if(!tgt)u.ang=Math.atan2(dst.y-u.y,dst.x-u.x)}
         if(!u.goal&&u.y>=WALL-12){u.jmp={t:0,dur:.75,a:u.y,b:HOME_Y};u.at=0}
         continue}}
-    if(u.wx!=null){const dx=u.wx-u.x;if(Math.abs(dx)>2)u.x+=Math.sign(dx)*Math.min(Math.abs(dx),170*dt)}
+    if(u.wx!=null){const dx=u.wx-u.x;if(Math.abs(dx)>2)u.x+=Math.sign(dx)*Math.min(Math.abs(dx),BAL.wallSpeed*dt)}
     let best=null,bs=-1e9;
     for(const e of S.enemies){if(e.dead||e.y<0)continue;
       const reach=dist(u,e)<=w.r+EN[e.type].r;
@@ -411,10 +435,10 @@ function step(dt){
       if(u.cd<=0){u.cd=w.rate;
         if(w.multi){const l=inRange(u).slice(0,w.multi);for(const e of l)attack(u,e,1)}
         else attack(u,best,1)}
-    }else if(u.wx!=null)u.ang=Math.atan2(best.y-u.y,best.x-u.x);else{const dx=best.x-u.x;if(Math.abs(dx)>4)u.x+=Math.sign(dx)*Math.min(Math.abs(dx),170*dt);
+    }else if(u.wx!=null)u.ang=Math.atan2(best.y-u.y,best.x-u.x);else{const dx=best.x-u.x;if(Math.abs(dx)>4)u.x+=Math.sign(dx)*Math.min(Math.abs(dx),BAL.wallSpeed*dt);
       u.x=Math.max(24,Math.min(W-24,u.x));u.ang=Math.atan2(best.y-u.y,best.x-u.x)}
   }
-  {const GAP=62,wl=IDS.map(id=>S.units[id]).filter(u=>u.w>=0&&!u.field&&!(u.wx!=null&&Math.abs(u.wx-u.x)>2)).sort((a,b)=>a.x-b.x);for(const u of wl)u.sx=u.x; // идущий по приказу проходит мимо остальных
+  {const GAP=BAL.wallGap,wl=IDS.map(id=>S.units[id]).filter(u=>u.w>=0&&!u.field&&!(u.wx!=null&&Math.abs(u.wx-u.x)>2)).sort((a,b)=>a.x-b.x);for(const u of wl)u.sx=u.x; // идущий по приказу проходит мимо остальных
     for(let k=0;k<3;k++)for(let i=0;i<wl.length-1;i++){const a=wl[i],b=wl[i+1],d=b.x-a.x;
       if(d<GAP){const p=(GAP-d)/2;a.x-=p;b.x+=p}}
     for(const u of wl)u.x=Math.max(28,Math.min(W-28,u.x));
@@ -436,8 +460,8 @@ function step(dt){
   if(S.door<=0){S.door=0;end(false);return}
   if(S.active&&!IDS.some(id=>S.units[id].w>=0&&!S.units[id].out)){end(false,1);return} // защищать бункер некому
   if(S.active&&!S.queue.length&&!S.enemies.length){
-    S.active=false;S.scrap+=30+5*S.wave;S.score+=100*S.wave+Math.round(S.door)*2;
-    if(S.wave<WAVES.length)S.banner={t:'ПОБЕДА',s:'Волна '+S.wave+' отбита · +'+(30+5*S.wave)+' скрапа',life:2.8};
+    S.active=false;S.scrap+=BAL.waveScrap[0]+BAL.waveScrap[1]*S.wave;S.score+=100*S.wave+Math.round(S.door)*2;
+    if(S.wave<WAVES.length)S.banner={t:'ПОБЕДА',s:'Волна '+S.wave+' отбита · +'+(BAL.waveScrap[0]+BAL.waveScrap[1]*S.wave)+' скрапа',life:2.8};
     for(const id of IDS){const T=S.units[id];if(T.w>=0){T.out=false;T.hp=tmax(T)}}ui();
     if(S.wave>=WAVES.length){S.score+=1000+Math.round(S.door)*10;end(true)}
   }
@@ -480,7 +504,7 @@ $('nameForm').addEventListener('submit',async ev=>{ev.preventDefault();
   S.sent=true;$('nameForm').hidden=true;await showTop(rec);$('lbNote').textContent=note});
 $('pname').addEventListener('keydown',e=>e.stopPropagation());
 function retry(){const c=S.cp;if(!c)return;
-  S.scrap=c.scrap;S.door=c.door;S.wave=c.wave;S.traps=c.traps.map(t=>({...t}));S.score=Math.max(0,(c.score||0)-200); // повтор волны стоит 200 очков
+  S.scrap=c.scrap;S.door=c.door;S.wave=c.wave;S.traps=c.traps.map(t=>({...t}));S.score=Math.max(0,(c.score||0)-BAL.retryCost); // повтор волны стоит 200 очков
   for(const id of IDS){const u=S.units[id];u.w=c.units[id];u.cd=0;u.scd=0;u.x=UNITS[id].x;u.y=UNITS[id].y;u.field=false;u.goal=null;u.out=false;u.hp=null;u.sup=0;u.at=0;u.jmp=null;u.focus=null;u.wx=null}
   S.later=[];
   S.active=false;S.over=false;S.aim=null;S.queue=[];S.enemies=[];S.fx=[];S.focus=null;S.sel=null;S.paused=false;
@@ -683,7 +707,7 @@ $('spDn').onclick=()=>spd(-1);$('spUp').onclick=()=>spd(1);
 function shiftWave(d){if(S.over){if(!S.win&&S.cp)retry();else return}
   S.cheat=true;
   const cur=S.active?S.wave:S.wave+1,n=Math.max(1,Math.min(WAVES.length,cur+d));
-  const earn=w=>WAVES[w-1].reduce((a,[t,c])=>a+c*EN[t].reward,0)+30+5*w;
+  const earn=w=>WAVES[w-1].reduce((a,[t,c])=>a+c*EN[t].reward,0)+BAL.waveScrap[0]+BAL.waveScrap[1]*w;
   if(n>cur)S.scrap+=earn(cur);else if(n<cur)S.scrap=Math.max(0,S.scrap-earn(n));
   S.wave=n-1;S.active=false;S.queue=[];S.enemies=[];for(const id of IDS)S.units[id].focus=null;ui();say('Выбрана волна '+n+'. Нажми кнопку волны, чтобы запустить.')}
 $('wPrev').onclick=()=>shiftWave(-1);$('wNext').onclick=()=>shiftWave(1);
@@ -773,7 +797,7 @@ addEventListener('resize',fit);
 let acc=0,prev=performance.now();const DT=1/60;
 function frame(now){
   let d=Math.min(.1,(now-prev)/1000);prev=now;
-  if(!S.paused&&!S.over){acc+=d*(S.aim?.12:S.speed);while(acc>=DT){step(DT);acc-=DT;if(S.over)break}}
+  if(!S.paused&&!S.over){acc+=d*(S.aim?BAL.aim.slowmo:S.speed);while(acc>=DT){step(DT);acc-=DT;if(S.over)break}}
   hud();draw();requestAnimationFrame(frame);
 }
 // состояние переживает обновление страницы при новой публикации
