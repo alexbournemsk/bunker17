@@ -251,7 +251,7 @@ function reset(){
 const wpn=u=>UNITS[u.id].weapons[u.w];
 const nxt=u=>{const ws=UNITS[u.id].weapons;for(let i=u.w+1;i<ws.length;i++)if(!ws[i].off)return i;return -1}; // следующее оружие в магазине; off - убрано из игры
 function startWave(){
-  if(S.over&&S.door<=0&&S.cp)retry(); // после проигрыша кнопка волны = повторить волну
+  if(S.over&&!S.win&&S.cp)retry(); // после проигрыша кнопка волны = повторить волну
   if(S.active||S.over||S.wave>=WAVES.length)return;
   S.cp={score:S.score,scrap:S.scrap,door:S.door,wave:S.wave,traps:S.traps.map(t=>({...t})),units:Object.fromEntries(IDS.map(id=>[id,S.units[id].w]))};
   S.wave++;S.active=true;S.t=0;S.queue=[];S.banner=null;let t=.5;
@@ -322,7 +322,8 @@ function special(u){
   if(u.out){say(UNITS[u.id].name+' выбыл до конца волны.');return}
   if(u.id==='hero'){if(S.aim){S.aim=null;ui();return}
     if(!alive().some(e=>dist(u,e)<=aimR(u)+EN[e.type].r)){say(wpn(u).sp.name+': нет врагов в радиусе.');return}
-    S.aim={tg:(u.focus&&!u.focus.dead&&dist(u,u.focus)<=aimR(u)+EN[u.focus.type].r)?u.focus:null};S.pick=false;S.shop=false;ui();return}
+    const inr=e=>dist(u,e)<=aimR(u)+EN[e.type].r; // цель: отмеченная, иначе ближайшая к Расту в радиусе
+    S.aim={tg:(u.focus&&!u.focus.dead&&u.focus.y>0&&inr(u.focus))?u.focus:alive().filter(inr).sort((a,b)=>dist(u,a)-dist(u,b))[0]||null};S.pick=false;S.shop=false;ui();return}
   const w=wpn(u),k=w.sp.kind,all=alive().sort((a,b)=>b.y-a.y);
   // цель: отмеченный тапом враг, иначе ближайший к стене
   const F=u.focus;
@@ -433,6 +434,7 @@ function step(dt){
   for(const f of S.fx)f.life-=dt;S.fx=S.fx.filter(f=>f.life>0);
   {const st=doorStage();if(st>(S.ds||0)){spr('wave',320,855,230,.5);S.fx.push({k:'txt',x:320,y:800,t:st>=5?'ДВЕРЬ ПРОБИТА':'ДВЕРЬ ПОВРЕЖДЕНА',life:1.1,max:1.1})}S.ds=st}
   if(S.door<=0){S.door=0;end(false);return}
+  if(S.active&&!IDS.some(id=>S.units[id].w>=0&&!S.units[id].out)){end(false,1);return} // защищать бункер некому
   if(S.active&&!S.queue.length&&!S.enemies.length){
     S.active=false;S.scrap+=30+5*S.wave;S.score+=100*S.wave+Math.round(S.door)*2;
     if(S.wave<WAVES.length)S.banner={t:'ПОБЕДА',s:'Волна '+S.wave+' отбита · +'+(30+5*S.wave)+' скрапа',life:2.8};
@@ -440,9 +442,9 @@ function step(dt){
     if(S.wave>=WAVES.length){S.score+=1000+Math.round(S.door)*10;end(true)}
   }
 }
-function end(win){
+function end(win,wiped){
   S.over=true;
-  $('overT').textContent=win?'Бункер выстоял':'Дверь пробита';
+  $('overT').textContent=win?'Бункер выстоял':wiped?'Отряд выбыл':'Дверь пробита';S.aim=null;
   $('overP').textContent=win?'Все 10 волн отбиты. Прочность двери: '+S.door+'.':'Ты продержался до волны '+S.wave+'.';
   $('retry').hidden=win||!S.cp;if(!win)$('retry').textContent='Повторить волну '+S.wave;
   $('overS').textContent='Очки: '+S.score;S.sent=false;S.win=win;
@@ -678,7 +680,7 @@ $('next').onclick=startWave;
 const SPEEDS=[.5,1,2,3,5];
 const spd=d=>{const i=Math.max(0,Math.min(SPEEDS.length-1,SPEEDS.indexOf(S.speed)+d));S.speed=SPEEDS[i];ui()};
 $('spDn').onclick=()=>spd(-1);$('spUp').onclick=()=>spd(1);
-function shiftWave(d){if(S.over){if(S.door<=0&&S.cp)retry();else return}
+function shiftWave(d){if(S.over){if(!S.win&&S.cp)retry();else return}
   S.cheat=true;
   const cur=S.active?S.wave:S.wave+1,n=Math.max(1,Math.min(WAVES.length,cur+d));
   const earn=w=>WAVES[w-1].reduce((a,[t,c])=>a+c*EN[t].reward,0)+30+5*w;
