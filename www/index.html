@@ -356,6 +356,7 @@ function step(dt){
         if(dd>stop&&!(u.at>0)){const st=Math.min(dd-stop,TSPD*dt);u.x+=(dst.x-u.x)/dd*st;u.y+=(dst.y-u.y)/dd*st;u.mv=.15;if(!tgt)u.ang=Math.atan2(dst.y-u.y,dst.x-u.x)}
         if(!u.goal&&u.y>=WALL-12){u.jmp={t:0,dur:.75,a:u.y,b:HOME_Y};u.at=0}
         continue}}
+    if(u.wx!=null){const dx=u.wx-u.x;if(Math.abs(dx)>2)u.x+=Math.sign(dx)*Math.min(Math.abs(dx),170*dt)}
     let best=null,bs=-1e9;
     for(const e of S.enemies){if(e.dead||e.y<0)continue;
       const reach=dist(u,e)<=w.r+EN[e.type].r;
@@ -368,15 +369,16 @@ function step(dt){
       if(u.cd<=0){u.cd=w.rate;
         if(w.multi){const l=inRange(u).slice(0,w.multi);for(const e of l)attack(u,e,1)}
         else attack(u,best,1)}
-    }else{const dx=best.x-u.x;if(Math.abs(dx)>4)u.x+=Math.sign(dx)*Math.min(Math.abs(dx),170*dt);
+    }else if(u.wx!=null)u.ang=Math.atan2(best.y-u.y,best.x-u.x);else{const dx=best.x-u.x;if(Math.abs(dx)>4)u.x+=Math.sign(dx)*Math.min(Math.abs(dx),170*dt);
       u.x=Math.max(24,Math.min(W-24,u.x));u.ang=Math.atan2(best.y-u.y,best.x-u.x)}
   }
-  {const wl=IDS.map(id=>S.units[id]).filter(u=>u.w>=0&&!u.field).sort((a,b)=>a.x-b.x),GAP=62;
+  {const GAP=62,wl=IDS.map(id=>S.units[id]).filter(u=>u.w>=0&&!u.field&&!(u.wx!=null&&Math.abs(u.wx-u.x)>2)).sort((a,b)=>a.x-b.x);for(const u of wl)u.sx=u.x; // идущий по приказу проходит мимо остальных
     for(let k=0;k<3;k++)for(let i=0;i<wl.length-1;i++){const a=wl[i],b=wl[i+1],d=b.x-a.x;
       if(d<GAP){const p=(GAP-d)/2;a.x-=p;b.x+=p}}
     for(const u of wl)u.x=Math.max(28,Math.min(W-28,u.x));
     for(let i=1;i<wl.length;i++)if(wl[i].x-wl[i-1].x<GAP)wl[i].x=Math.min(W-28,wl[i-1].x+GAP);
-    for(let i=wl.length-2;i>=0;i--)if(wl[i+1].x-wl[i].x<GAP)wl[i].x=wl[i+1].x-GAP}
+    for(let i=wl.length-2;i>=0;i--)if(wl[i+1].x-wl[i].x<GAP)wl[i].x=wl[i+1].x-GAP
+    for(const u of wl)if(u.wx!=null&&Math.abs(u.x-u.sx)>.01)u.wx=u.x}
   for(const id of IDS){const u=S.units[id];if(u.w<0)continue; // пройденный путь - для кадров ходьбы
     const d=u.px==null?0:Math.hypot(u.x-u.px,u.y-u.py);u.px=u.x;u.py=u.y;
     if(d>.3&&d<40){u.walkd=(u.walkd||0)+d;u.mv=.14}else if(u.mv>0)u.mv-=dt}
@@ -434,7 +436,7 @@ $('nameForm').addEventListener('submit',async ev=>{ev.preventDefault();
 $('pname').addEventListener('keydown',e=>e.stopPropagation());
 function retry(){const c=S.cp;if(!c)return;
   S.scrap=c.scrap;S.door=c.door;S.wave=c.wave;S.traps=c.traps.map(t=>({...t}));S.score=Math.max(0,(c.score||0)-200); // повтор волны стоит 200 очков
-  for(const id of IDS){const u=S.units[id];u.w=c.units[id];u.cd=0;u.scd=0;u.x=UNITS[id].x;u.y=UNITS[id].y;u.field=false;u.goal=null;u.out=false;u.hp=null;u.sup=0;u.at=0;u.jmp=null;u.focus=null}
+  for(const id of IDS){const u=S.units[id];u.w=c.units[id];u.cd=0;u.scd=0;u.x=UNITS[id].x;u.y=UNITS[id].y;u.field=false;u.goal=null;u.out=false;u.hp=null;u.sup=0;u.at=0;u.jmp=null;u.focus=null;u.wx=null}
   S.later=[];
   S.active=false;S.over=false;S.queue=[];S.enemies=[];S.fx=[];S.focus=null;S.sel=null;S.paused=false;
   $('over').hidden=true;ui();say('Волна '+(c.wave+1)+': все возвращено к ее началу. Можно перевооружиться и запустить.')}
@@ -475,7 +477,11 @@ function draw(){
         g.drawImage(ei,nf>1?fw:0,0,fw,ei.height,-Math.round(fw*(nf>1?.62:.5)),-ei.height-(atWall?0:Math.abs(Math.sin(ph))*3),fw,ei.height)}
       g.restore();
       if(e.stun>0){g.fillStyle='#ffe08a';g.font='16px "Russo One",sans-serif';g.textAlign='center';g.fillText('✶ ✶',e.x,e.y+b.r-ei.height-4)}
-      if(e===FOC||e.slow){g.strokeStyle=e===FOC?'#f2a93b':'#7fd0e0';g.lineWidth=2;g.beginPath();g.ellipse(e.x,e.y+b.r,b.r+6,7,0,0,7);g.stroke()}}
+      if(e.slow){g.fillStyle='#7fd0e0';g.fillRect(Math.round(e.x-b.r*.7),Math.round(e.y+b.r+7),Math.round(b.r*1.4),2)}
+      if(e===FOC){const x0=Math.round(e.x-b.r-7),x1=Math.round(e.x+b.r+7),y0=Math.round(e.y+b.r+4-ei.height-3),y1=Math.round(e.y+b.r+7),L=7;
+        g.strokeStyle='#f2a93b';g.lineWidth=2;g.beginPath();
+        g.moveTo(x0,y0+L);g.lineTo(x0,y0);g.lineTo(x0+L,y0);g.moveTo(x1-L,y0);g.lineTo(x1,y0);g.lineTo(x1,y0+L);
+        g.moveTo(x1,y1-L);g.lineTo(x1,y1);g.lineTo(x1-L,y1);g.moveTo(x0+L,y1);g.lineTo(x0,y1);g.lineTo(x0,y1-L);g.stroke()}}
     else{
     g.fillStyle=b.col;g.strokeStyle=e===FOC?'#f2a93b':e.slow?'#7fd0e0':'#17130e';g.lineWidth=e===FOC?3:2;g.beginPath();
     if(e.type==='rat')g.ellipse(e.x,e.y,b.r*.8,b.r*1.2,0,0,7);
@@ -496,7 +502,7 @@ function draw(){
       else if(ua){const fw=hi.width/ua.n,fi=u.at>.44?1:u.at>.32?2:u.at>0?3:0;g.drawImage(hi,fi*fw,0,fw,hi.height,-ua.ax,-hi.height,fw,hi.height)}
       else g.drawImage(hi,-Math.round(hi.width*.42),-hi.height);
       g.restore();
-      if(u.scd>0){g.strokeStyle='#7fd0e0';g.lineWidth=3;g.beginPath();g.arc(u.x,u.y+20,24,0,2*Math.PI*(1-u.scd/w.sp.cd));g.stroke()}
+      if(u.scd>0){const bx=Math.round(u.x-18),by=Math.round(u.y+31);g.fillStyle='rgba(23,19,14,.8)';g.fillRect(bx,by,36,3);g.fillStyle='#7fd0e0';g.fillRect(bx,by,36*(1-u.scd/w.sp.cd),3)}
       continue}
     g.save();g.translate(u.x,u.y);
     g.fillStyle='rgba(0,0,0,.35)';g.beginPath();g.ellipse(0,R*.7,R+3,8,0,0,7);g.fill();
@@ -512,11 +518,13 @@ function draw(){
     g.fillStyle='#e9dcc0';g.font='12px "JetBrains Mono",monospace';g.textAlign='center';g.fillText(d.name,u.x,u.y+R+18);
   }
   {const T=S.units.tar;
-    if(T.w>=0&&T.goal){g.strokeStyle='#f2a93b';g.lineWidth=2;g.setLineDash([6,5]);g.beginPath();g.arc(T.goal.x,T.goal.y,GUARD,0,7);g.stroke();g.setLineDash([]);
-      g.fillStyle='#f2a93b';g.fillRect(T.goal.x-1,T.goal.y-22,3,22);g.beginPath();g.moveTo(T.goal.x+2,T.goal.y-22);g.lineTo(T.goal.x+18,T.goal.y-16);g.lineTo(T.goal.x+2,T.goal.y-10);g.fill()}
+    if(T.w>=0&&T.goal&&S.selU==='tar'){g.strokeStyle='rgba(242,169,59,.28)';g.lineWidth=1.5;g.setLineDash([3,9]);g.beginPath();g.arc(T.goal.x,T.goal.y,GUARD,0,7);g.stroke();g.setLineDash([]);
+      }
     if(T.w>=0&&T.hp!=null&&(T.hp<tmax(T)||T.field)){const w=54,x=T.x-w/2,y=T.y-98;g.fillStyle='#17130e';g.fillRect(x-1,y-1,w+2,7);g.fillStyle=T.out?'#c2552d':'#8fbf5a';g.fillRect(x,y,w*Math.max(0,T.hp)/tmax(T),5)}
     for(const id of IDS){const u=S.units[id];if(u.w>=0&&u.sup>0){g.fillStyle='#ff785a';g.font='13px "Russo One",sans-serif';g.textAlign='center';g.fillText('ПРИЖАТ',u.x,u.y-90)}}
-    if(SU.w>=0&&!SU.out){g.strokeStyle='#ffe08a';g.lineWidth=2;g.beginPath();g.ellipse(SU.x,SU.y+21,26,9,0,0,7);g.stroke()}}
+    if(SU.w>=0&&!SU.out){const x=Math.round(SU.x),y=Math.round(SU.y-(S.selU==='tar'?112:74)+Math.sin(performance.now()/260)*2);
+      g.fillStyle='#f2a93b';g.strokeStyle='#17130e';g.lineWidth=1.5;g.beginPath();g.moveTo(x-7,y);g.lineTo(x+7,y);g.lineTo(x,y+8);g.closePath();g.fill();g.stroke();
+      if(SU.wx!=null&&!SU.field&&Math.abs(SU.wx-SU.x)>4){g.fillStyle='#f2a93b';g.fillRect(Math.round(SU.wx)-6,Math.round(SU.y+26),12,2)}}}
   {const k=Math.max(0,S.door/100),x=120,y=926,w=400,h=18;
     g.fillStyle='#17130e';g.fillRect(x-2,y-2,w+4,h+4);
     g.fillStyle=k>.5?'#8fbf5a':k>.25?'#f2a93b':'#c2552d';g.fillRect(x,y,w*k,h);
@@ -563,8 +571,10 @@ cv.addEventListener('pointerdown',e=>{
     else if(p[1]<WALL-25){U.goal={x:Math.max(30,Math.min(W-30,p[0])),y:Math.max(70,p[1])};
       if(!U.field){U.field=true;U.jmp={t:0,dur:.45,a:HOME_Y,b:WALL-10}}else if(U.jmp&&U.jmp.b>U.jmp.a)U.jmp={t:0,dur:.3,a:U.y,b:WALL-10}}
     else if(U.field){U.goal=null;say('Тарук возвращается на стену.')}
+    else U.wx=Math.max(28,Math.min(W-28,p[0]));
     S.sel=null;ui();return}
   if(near){U.focus=near;S.sel=null;ui();say(UNITS[S.selU].name+' бьет отмеченную цель.');return}
+  if(p[1]>=WALL-25&&U.w>=0){U.wx=Math.max(28,Math.min(W-28,p[0]));S.sel=null;ui();return}
   S.sel=trapAt(c,r)||null;ui();
 });
 function say(t){const h=$('hint');h.textContent=t;if(M){h.classList.add('show');clearTimeout(say.t);say.t=setTimeout(()=>h.classList.remove('show'),2600)}}
@@ -584,7 +594,7 @@ for(const id of IDS){
 }
 const sq={};
 for(const id of IDS){const b=document.createElement('button');b.className='sq';sq[id]=b;$('squad').appendChild(b);
-  b.onclick=()=>{if(S.units[id].w<0)return;S.selU=id;S.pick=false;S.shop=false;ui()}}
+  b.onclick=()=>{if(S.units[id].w<0)return;if(S.selU===id)S.units[id].wx=null;S.selU=id;S.pick=false;S.shop=false;ui()}}
 const tb=document.createElement('button');$('build').appendChild(tb);
 tb.innerHTML='<span class="row"><img alt="" style="height:auto" src="'+ART.trap+'"><span>Ловушка<small>замедляет, ранит, изнашивается</small></span><span class="nx"><b>'+TRAP+'</b></span></span>';
 tb.onclick=()=>{S.pick=!S.pick;S.sel=null;if(M)S.shop=false;ui()};
