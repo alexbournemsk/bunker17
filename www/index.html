@@ -99,7 +99,18 @@ button.go{background:var(--rust);border-color:var(--rust);font-family:var(--disp
 .m #abil .row img{width:48px;height:48px}
 .m #abil button[data-cd]:not([data-cd=""])::after{content:attr(data-cd);position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(20,17,13,.72);font:400 20px var(--display);color:var(--fg)}
 .m #abil .gl{font-size:28px;line-height:1;color:var(--amber)}
-.m #abil #mShop{margin-left:auto;flex:0 0 auto;width:auto;padding:0 14px;font-family:var(--display);font-size:14px;letter-spacing:.03em}
+.m #abil{display:none}
+.m #squad{align-items:flex-start}
+.m #squad .col{flex:0 1 calc((100% - 12px)/3);min-width:0;display:flex;flex-direction:column;gap:6px}
+.m #squad .col:has(.sq[hidden]){display:none}
+.m #squad .col .sq{flex:none;width:100%}
+.m #squad .ab{flex:none;width:56px;height:56px;min-height:56px;padding:0;position:relative;align-items:center}
+.m #squad .ab.on{background:#3a2a10}
+.m #squad .ab .row{justify-content:center}
+.m #squad .ab .row>span{display:none}
+.m #squad .ab .row img{width:48px;height:48px}
+.m #squad .ab[data-cd]:not([data-cd=""])::after{content:attr(data-cd);position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(20,17,13,.72);font:400 20px var(--display);color:var(--fg)}
+#mShop{position:absolute;top:8px;right:24px;z-index:3;width:auto;min-height:44px;padding:0 14px;font-family:var(--display);font-size:14px;letter-spacing:.03em;border-color:var(--amber)}
 .m #bar{position:fixed;left:16px;right:16px;bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:5;display:block}
 .m #bar .sp{display:none}
 .m #build,.m #sel{background:var(--bg);border:2px solid var(--amber);padding:8px;flex-direction:column;flex-wrap:nowrap}
@@ -167,11 +178,11 @@ const UNITS={
     {name:'Копье',off:1,cost:90,dmg:22,rate:.7,r:160,melee:1,sp:{name:'Бросок копья',cd:7,kind:'throw',r:400,dmg:90,tip:'прицельный бросок по зонам, радиус 5'}},
     {name:'Пистолет',cost:160,dmg:20,rate:.5,r:240,sp:{name:'Прицельный выстрел',cd:5,kind:'double',r:440,dmg:60,acc:5,tip:'выстрел по зонам, радиус 5.5'}},
     {name:'Винтовка',cost:280,dmg:45,rate:.9,r:320,sp:{name:'Прицельный выстрел',cd:8,kind:'head',r:720,dmg:180,acc:15,tip:'выстрел по зонам, все поле'}}]},
-  tar:{name:'Тарук',col:'#a5673a',x:180,y:750,hire:100,weapons:[
-    {name:'Молот',cost:100,dmg:28,rate:1,r:90,melee:1,sp:{name:'Отброс',cd:9,kind:'knock',r:210,tip:'отбрасывает всех в радиусе 2.6'}},
+  tar:{name:'Тарук',col:'#a5673a',x:180,y:750,hire:500,weapons:[
+    {name:'Молот',cost:500,dmg:28,rate:1,r:90,melee:1,sp:{name:'Отброс',cd:9,kind:'knock',r:210,tip:'отбрасывает всех в радиусе 2.6'}},
     {name:'Суперкувалда',cost:220,dmg:60,rate:1,r:95,melee:1,sp:{name:'Мощный отброс',cd:12,kind:'knockAll',r:240,tip:'всех в радиусе 3 - на полполя назад'}}]},
-  bor:{name:'Виктор',col:'#7a7f4a',x:460,y:750,fat:1,hire:150,weapons:[
-    {name:'Ружье',cost:150,dmg:14,rate:1.1,r:200,multi:3,sp:{name:'Дуплет',cd:8,kind:'blast',r:320,tip:'урон x3 всем в радиусе 4'}},
+  bor:{name:'Виктор',col:'#7a7f4a',x:460,y:750,fat:1,hire:500,weapons:[
+    {name:'Ружье',cost:500,dmg:14,rate:1.1,r:200,multi:3,sp:{name:'Дуплет',cd:8,kind:'blast',r:320,tip:'урон x3 всем в радиусе 4'}},
     {name:'Снайперка',cost:260,dmg:90,rate:1.8,r:560,sp:{name:'Прицельный',cd:10,kind:'snipe',tip:'500 урона самому живучему'}}]}
 };
 const IDS=Object.keys(UNITS);
@@ -711,7 +722,8 @@ if(M){
   document.body.appendChild(dev);
   gear.onclick=()=>{dev.hidden=!dev.hidden;gear.classList.toggle('on',!dev.hidden)};
   const tools=document.createElement('span');tools.className='tools';tools.append(sp,$('pause'),$('next'),gear);hd.appendChild(tools);
-  const shop=mk('mShop','Магазин');shop.onclick=()=>{S.shop=!S.shop;S.pick=false;ui()};$('abil').appendChild(shop);
+  const shop=mk('mShop','Магазин');shop.onclick=()=>{S.shop=!S.shop;S.pick=false;ui()};$('stage').appendChild(shop);
+  for(const id of IDS){const c=document.createElement('div');c.className='col';ab[id].classList.add('ab');c.append(sq[id],ab[id]);$('squad').appendChild(c)} // способность - под портретом своего бойца
 }
 let last={};
 function ui(){
@@ -728,8 +740,8 @@ function ui(){
     b.innerHTML='<span class="row">'+left+right+'</span>';
     ab[id].hidden=u.w<0}
   tb.classList.toggle('on',S.pick);
-  $('build').hidden=!!S.sel||(M&&!S.shop);$('sel').hidden=!S.sel;
-  if(M){$('mSpeed').textContent='x'+S.speed;$('mSpeed').classList.toggle('on',S.speed>1);$('mShop').classList.toggle('on',!!S.shop)}
+  if(S.active)S.shop=false;$('build').hidden=!!S.sel||(M?!S.shop:S.active);$('sel').hidden=!S.sel;
+  if(M){$('mSpeed').textContent='x'+S.speed;$('mSpeed').classList.toggle('on',S.speed>1);$('mShop').classList.toggle('on',!!S.shop);$('mShop').hidden=S.active||S.over}
   if(S.sel){$('sell').innerHTML='Продать ловушку · +'+sellTrap(S.sel)+'<small>осталось '+Math.round(100*S.sel.dur/DUR)+'% прочности</small>';say('Ловушка: враги в этой клетке идут вчетверо медленнее и получают '+WIRE+' урона в секунду. Проволока изнашивается, пока в ней враги.')}
   else if(S.pick)say('Ловушка: ткни в клетку поля. Повторное нажатие на кнопку снимает выбор.');
   else if(!M)say('Тап по врагу - метка цели для отряда и способностей. Крупные кнопки - способности, ниже - оружие и найм.');
