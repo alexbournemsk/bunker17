@@ -181,8 +181,8 @@ const EN={
 const GUNY=330,HOME_Y=750,GUARD=150,TSPD=130,HOLD=3,AGGRO=150;
 const tmax=u=>u.w>0?240:170;
 // первые волны учат прицельному удару: по одной новой задаче на волну
-const WTIP=['Крысы. Rust бьет сам. Кнопка камня - прицельный бросок: выбери цель, потом зону.',
-  'Рейдеры-разведчики. Бросок по ногам замедляет, в голову - оглушает.',
+const WTIP=['Две матерые крысы. Кнопка камня - прицельный бросок: выбери цель, потом зону. Ноги - замедлить.',
+  'Крысы и рейдер-разведчик. У рейдера пистолет - сними его.',
   'Стрелок встает вдали и прижимает бойцов. Бросок по рукам - он замолчит.',
   'Подрывник бежит к двери. Попади по рукам - взорвется на месте.'];
 // зоны прицельного удара: [ключ, подпись, базовый шанс, множитель урона]
@@ -213,9 +213,9 @@ function aimTap(p){const u=S.units.hero,A=S.aim;
   if(dist(u,near)>aimR(u)+EN[near.type].r){say('Слишком далеко для прицельного удара.');return}
   A.tg=near}
 const WAVES=[
-  [['rat',6,1.3]],
-  [['raider',2,3],['rat',3,1],['raider',2,2.4]],
-  [['raider',3,1.8],['gunner',1,1],['rat',4,.8],['raider',2,1.6]],
+  [['rat',2,4,{hp:3}]], // 4-й элемент: hp - множитель здоровья, drop - номер оружия Раста, которое падает с врага
+  [['rat',2,3,{hp:2}],['raider',1,1,{drop:3}]],
+  [['raider',2,2.5],['gunner',1,1],['rat',3,1],['raider',1,1]],
   [['rat',5,.8],['raider',4,1.5],['bomber',2,2.5]],
   [['brute',1,2],['raider',5,1.3],['gunner',2,2]],
   [['rat',10,.6],['bomber',3,2]],
@@ -242,19 +242,21 @@ function startWave(){
   S.cp={score:S.score,scrap:S.scrap,door:S.door,wave:S.wave,traps:S.traps.map(t=>({...t})),units:Object.fromEntries(IDS.map(id=>[id,S.units[id].w]))};
   S.wave++;S.active=true;S.t=0;S.queue=[];S.banner=null;let t=.5;
   if(WTIP[S.wave-1])say(WTIP[S.wave-1]);
-  for(const [type,n,gap] of WAVES[S.wave-1]){for(let i=0;i<n;i++){S.queue.push({t,type});t+=gap}t+=1.5}
+  for(const [type,n,gap,o] of WAVES[S.wave-1]){for(let i=0;i<n;i++){S.queue.push({t,type,o});t+=gap}t+=1.5}
   ui();
 }
-function spawn(type){
-  const e=EN[type],k=1+.12*(S.wave-1);
+function spawn(type,o){
+  const e=EN[type],k=(1+.12*(S.wave-1))*((o&&o.hp)||1);
   const x=type==='boss'?320:Math.floor(Math.random()*COLS)*C+40+(Math.random()*30-15);
-  S.enemies.push({type,x,y:-30,hp:e.hp*k,max:e.hp*k,slow:false,acd:0});
+  S.enemies.push({type,x,y:-30,hp:e.hp*k,max:e.hp*k,slow:false,acd:0,drop:o&&o.drop});
 }
 function hit(e,dmg,crit){
   if(e.dead)return;e.hp-=dmg;
   if(crit){S.fx.push({k:'txt',x:e.x,y:e.y-20,t:'КРИТ',life:.6,max:.6});spr('crit',e.x,e.y-14,56,.32)}
   if(e.hp<=0){e.dead=true;S.scrap+=EN[e.type].reward;S.score+=EN[e.type].reward*10;S.fx.push({k:'boom',x:e.x,y:e.y,r:EN[e.type].r*1.6,life:.25,max:.25});
-    if(e.type==='bomber')explode(e)}
+    if(e.type==='bomber')explode(e);
+    if(e.drop){const h=S.units.hero;if(h.w<e.drop){h.w=e.drop;h.scd=0;S.aim=null;const nw=wpn(h);
+      S.fx.push({k:'txt',x:e.x,y:e.y-44,t:nw.name.toUpperCase(),life:1.4,max:1.4});say('Трофей: '+nw.name+'. Rust вооружен. Способность - '+nw.sp.name+'.');ui()}}}
 }
 const tarOn=()=>{const T=S.units.tar;return T.w>=0&&T.field&&!T.out};
 function hurtTar(d){const T=S.units.tar;if(T.out)return;T.hp-=d;T.hurt=.25;T.ph=1.6;
@@ -332,7 +334,7 @@ function special(u){
 
 function step(dt){
   if(S.banner&&(S.banner.life-=dt/S.speed)<=0)S.banner=null;
-  if(S.active){S.t+=dt;while(S.queue.length&&S.queue[0].t<=S.t)spawn(S.queue.shift().type)}
+  if(S.active){S.t+=dt;while(S.queue.length&&S.queue[0].t<=S.t){const q=S.queue.shift();spawn(q.type,q.o)}}
   const traps=new Map(S.traps.map(t=>[t.c+','+t.r,t]));
   const T=S.units.tar,tOn=tarOn();let holders=0;
   for(const e of S.enemies){
