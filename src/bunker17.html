@@ -163,6 +163,7 @@ const BAL={
   scrap0:60,              // скрап на старте
   waveScrap:[30,5],       // награда за волну: база + за каждый номер волны
   waveHp:.12,             // прирост здоровья врагов за каждую волну
+  waveEndDelay:2,         // секунд между гибелью последнего врага и концом волны
   doorRepair:6,           // ремонт двери после отбитой волны
   retryCost:200,          // очков за повтор волны
   hp:{hero:100,bor:120,tar:[170,240]}, // здоровье бойцов; у Тарука - с молотом и с кувалдой
@@ -466,7 +467,8 @@ function step(dt){
   {const st=doorStage();if(st>(S.ds||0)){spr('wave',320,855,230,.5);S.fx.push({k:'txt',x:320,y:800,t:st>=5?'ДВЕРЬ ПРОБИТА':'ДВЕРЬ ПОВРЕЖДЕНА',life:1.1,max:1.1})}S.ds=st}
   if(S.door<=0){S.door=0;end(false);return}
   if(S.active&&!IDS.some(id=>S.units[id].w>=0&&!S.units[id].out)){end(false,1);return} // защищать бункер некому
-  if(S.active&&!S.queue.length&&!S.enemies.length){
+  if(S.enemies.length||S.queue.length)S.endT=0;
+  if(S.active&&!S.queue.length&&!S.enemies.length&&(S.endT=(S.endT||0)+dt)>=BAL.waveEndDelay){S.endT=0; // пауза после последнего врага: падение доигрывается
     S.active=false;S.door=Math.min(100,S.door+BAL.doorRepair);S.scrap+=BAL.waveScrap[0]+BAL.waveScrap[1]*S.wave;S.score+=100*S.wave+Math.round(S.door)*2;
     if(S.wave<WAVES.length)S.banner={t:'ПОБЕДА',s:'Волна '+S.wave+' отбита · +'+(BAL.waveScrap[0]+BAL.waveScrap[1]*S.wave)+' скрапа',life:2.8};
     for(const id of IDS){const T=S.units[id];if(T.w>=0){T.out=false;T.hp=tmax(T)}}ui();
