@@ -177,6 +177,7 @@ const BAL={
   scrap0:60,              // скрап на старте
   waveScrap:[30,5],       // награда за волну: база + за каждый номер волны
   waveHp:.12,             // прирост здоровья врагов за каждую волну
+  doorRepair:6,           // ремонт двери после отбитой волны
   retryCost:200,          // очков за повтор волны
   hp:{hero:100,bor:120,tar:[170,240]}, // здоровье бойцов; у Тарука - с молотом и с кувалдой
   tarRegen:14,            // лечение Тарука на стене, в секунду
@@ -185,14 +186,15 @@ const BAL={
   wallGap:62,             // минимум между бойцами на стене
   crit:[.1,2],            // шанс и множитель крита обычной атаки
   knock:[160,350],        // отброс молота и кувалды
-  gunner:{dmg:6,dmgTar:8,rate:1.8,prep:.6,tarRange:420}, // стрелок: урон бойцу на стене, урон Таруку, интервал, пауза перед первым выстрелом
+  gunner:{dmg:7,dmgTar:8,rate:1.8,prep:.6,tarRange:420}, // стрелок: урон бойцу на стене, урон Таруку, интервал, пауза перед первым выстрелом
   bomber:{dmg:40,r:95,tarDmg:55,tarR:100,door:18},       // подрывник: урон соседям, радиус, урон Таруку, урон двери
   aim:{slowmo:.12,        // скорость времени в прицеле
     distPen:15,cap:97,    // штраф шанса на краю радиуса и потолок шанса
     missCd:.5,            // доля перезарядки при промахе
     headStun:1.5,rockHeadStun:2,rockBodyStun:.5, // оглушение: голова, голова камнем, корпус камнем
     legsStop:2,legsTime:10,legsSpeed:.22,        // ноги: стоит, потом хромает (всего секунд), скорость хромого
-    armsTime:8,armsMult:.5}                      // руки: время и множитель урона
+    armsTime:8,armsMult:.5,
+    stunVuln:1.5}                                // оглушенный враг получает больше урона от обычных атак                      // руки: время и множитель урона
 };
 // радиус в клетках: 1 клетка = 80
 const UNITS={
@@ -200,7 +202,7 @@ const UNITS={
     {name:'Кулаки',cost:0,dmg:6,rate:.5,r:75,melee:1,sp:{name:'Бросок камня',cd:4,kind:'rock',r:260,dmg:18,tip:'прицельный бросок по зонам, радиус 3'}},
     {name:'Нож',off:1,cost:40,dmg:12,rate:.45,r:85,melee:1,sp:{name:'Бросок ножа',cd:5,kind:'knife',r:260,dmg:60,tip:'прицельный бросок по зонам, радиус 3'}},
     {name:'Копье',off:1,cost:90,dmg:22,rate:.7,r:160,melee:1,sp:{name:'Бросок копья',cd:7,kind:'throw',r:400,dmg:90,tip:'прицельный бросок по зонам, радиус 5'}},
-    {name:'Пистолет',cost:160,dmg:20,rate:.5,r:240,sp:{name:'Прицельный выстрел',cd:5,kind:'double',r:440,dmg:60,acc:5,tip:'выстрел по зонам, радиус 5.5'}},
+    {name:'Пистолет',cost:160,dmg:20,rate:.5,r:280,sp:{name:'Прицельный выстрел',cd:5,kind:'double',r:440,dmg:60,acc:5,tip:'выстрел по зонам, радиус 5.5'}},
     {name:'Винтовка',cost:280,dmg:45,rate:.9,r:320,sp:{name:'Прицельный выстрел',cd:8,kind:'head',r:720,dmg:180,acc:15,tip:'выстрел по зонам, все поле'}}]},
   tar:{name:'Тарук',col:'#a5673a',x:180,y:750,hire:500,weapons:[
     {name:'Молот',cost:500,dmg:28,rate:1,r:90,melee:1,sp:{name:'Отброс',cd:9,kind:'knock',r:210,tip:'отбрасывает всех в радиусе 2.6'}},
@@ -224,22 +226,25 @@ g.imageSmoothingEnabled=false;
 const EN={
   rat:{hp:22,speed:70,reward:6,atk:2,r:11,col:'#8a6f55'},
   raider:{hp:60,speed:40,reward:12,atk:3,r:14,col:'#b0432a'},
-  brute:{hp:260,speed:26,reward:35,atk:8,r:20,col:'#6f8a3c'},
-  boss:{hp:2200,speed:20,reward:200,atk:25,r:28,col:'#5a2a5e'},
+  brute:{hp:300,speed:26,reward:35,atk:8,r:20,col:'#6f8a3c',armor:.5,zm:{body:.4}}, // armor - множитель урона обычных атак, пока враг не хромает и не оглушен; zm - множители урона прицельного удара по зонам: корпус в броне
+  boss:{hp:700,speed:20,reward:200,atk:25,r:28,col:'#5a2a5e',armor:.5,zm:{body:.4,legs:.5}},
   gunner:{hp:70,speed:40,reward:16,atk:3,r:14,col:'#5a7fa8'}, // встает на середине поля и стреляет по защитникам
-  bomber:{hp:45,speed:95,reward:14,atk:0,r:14,col:'#c8402a'}  // бежит к двери и взрывается
+  bomber:{hp:80,speed:105,reward:14,atk:0,r:14,col:'#c8402a'}  // бежит к двери и взрывается
 };
 const HOME_Y=750;
-const GUNY=330,GUARD=150,TSPD=130,HOLD=3,AGGRO=150; // БАЛАНС: линия стрелков; у Тарука в поле - радиус охраны, скорость, сколько врагов держит, радиус, с которого враги на него сворачивают
+const GUNY=400,GUARD=150,TSPD=130,HOLD=3,AGGRO=150; // БАЛАНС: линия стрелков; у Тарука в поле - радиус охраны, скорость, сколько врагов держит, радиус, с которого враги на него сворачивают
 const tmax=u=>u.id==='tar'?BAL.hp.tar[u.w>0?1:0]:BAL.hp[u.id]; // здоровье бойца
 // первые волны учат прицельному удару: по одной новой задаче на волну
 const WTIP=['Две матерые крысы. Кнопка камня - прицельный бросок: выбери цель, потом зону. Ноги - замедлить.',
   'Крысы и рейдер-разведчик. У рейдера пистолет - сними его.',
   'Стрелок встает вдали и бьет по бойцам на стене. Выстрел по рукам - он замолчит.',
-  'Подрывник бежит к двери. Попади по рукам - взорвется на месте.'];
+  'Подрывник бежит к двери. По ногам - не добежит. По рукам - взорвется на месте и заденет соседей.',
+  'Громила в броне: обычные выстрелы вязнут. Попади по ногам - захромает и откроется. Потом в голову.',
+  'Подрывник идет рядом с толпой. Подорви его по рукам, когда он среди своих.',
+  'Два стрелка прикрывают громилу. Реши, кого заткнуть первым.'];
 // зоны прицельного удара: [ключ, подпись, базовый шанс, множитель урона]
 const ZONES=[['head','ГОЛОВА',75,2.5],['arms','РУКИ',88,.7],['body','КОРПУС',100,1],['legs','НОГИ',90,.7]];
-const zHint=(z,e)=>z==='head'?'крит, оглушение':z==='body'?'надежно':z==='legs'?'стоп и хромота':e.type==='bomber'?'подрыв на месте':e.type==='gunner'?'не стреляет':'бьет слабее';
+const zHint=(z,e)=>z==='head'?'крит, оглушение':z==='body'?((EN[e.type].zm||{}).body?'броня, слабо':'надежно'):z==='legs'?'стоп и хромота':e.type==='bomber'?'подрыв на месте':e.type==='gunner'?'не стреляет':'бьет слабее';
 const aimR=u=>wpn(u).sp.r+0;
 function zChance(u,e,z){const sp=wpn(u).sp;return Math.round(Math.max(10,Math.min(BAL.aim.cap,z[2]+(sp.acc||0)-dist(u,e)/sp.r*BAL.aim.distPen)))}
 function aimPanel(e){const w=M?330:270,rh=M?58:44,h=rh*4;return{w,rh,h,x:Math.round(e.x>W/2?Math.max(8,e.x-46-w):Math.min(W-w-8,e.x+46)),y:Math.round(Math.max(110,Math.min(WALL-h-20,e.y-h/2)))}}
@@ -250,7 +255,7 @@ function aimFire(z){const u=S.units.hero,e=S.aim.tg,w=wpn(u),sp=w.sp;S.aim=null;
   if(!ok){u.scd=sp.cd*BAL.aim.missCd;S.fx.push({k:'txt',x:e.x,y:e.y-40,t:'ПРОМАХ',life:.8,max:.8});return}
   u.scd=sp.cd;const k=z[0];
   if(k==='arms'&&e.type==='bomber'){S.fx.push({k:'txt',x:e.x,y:e.y-40,t:'ПОДРЫВ',life:.9,max:.9});explode(e);return}
-  hit(e,sp.dmg*z[3],k==='head');
+  hit(e,sp.dmg*z[3]*((EN[e.type].zm||{})[k]||1),k==='head');
   if(k==='head')e.stun=Math.max(e.stun||0,sp.kind==='rock'?BAL.aim.rockHeadStun:BAL.aim.headStun);
   else if(k==='legs'){e.crip=BAL.aim.legsTime;e.stun=Math.max(e.stun||0,BAL.aim.legsStop);S.fx.push({k:'txt',x:e.x,y:e.y-40,t:'ХРОМАЕТ',life:.9,max:.9})}
   else if(k==='arms'){e.disarm=BAL.aim.armsTime;S.fx.push({k:'txt',x:e.x,y:e.y-40,t:e.type==='gunner'?'НЕ СТРЕЛЯЕТ':'ОСЛАБЛЕН',life:.9,max:.9})}
@@ -268,13 +273,13 @@ const WAVES=[
   [['rat',2,4,{hp:3}]], // 4-й элемент: hp - множитель здоровья, drop - номер оружия Раста, которое падает с врага
   [['rat',2,3,{hp:2}],['raider',1,1,{drop:3}]],
   [['raider',2,7],['rat',2,5],['gunner',1,6],['raider',1,1]],
-  [['rat',5,.8],['raider',4,1.5],['bomber',2,2.5]],
-  [['brute',1,2],['raider',5,1.3],['gunner',2,2]],
-  [['rat',10,.6],['bomber',3,2]],
-  [['brute',3,2.5],['raider',6,1.1],['gunner',2,2]],
-  [['raider',8,.9],['rat',8,.5],['bomber',3,1.5],['gunner',2,2]],
-  [['brute',5,2],['rat',8,.5],['gunner',3,1.5]],
-  [['boss',1,1],['brute',3,2],['raider',6,1],['bomber',3,2],['gunner',2,2]]
+  [['raider',2,3],['bomber',1,4],['rat',2,2],['bomber',1,1]],                         // подрывник: ноги или подрыв по рукам
+  [['brute',1,5,{hp:1.38}],['raider',2,3],['gunner',1,4],['rat',2,2]],                          // громила в броне: ноги и голова, не корпус
+  [['raider',3,1.2],['bomber',1,3],['brute',1,1.5],['bomber',1,5],['rat',3,1]],       // подрывник рядом с толпой и громилой: подрыв по рукам
+  [['gunner',2,3],['brute',1,4],['raider',3,2],['bomber',1,2]],                       // два стрелка прикрывают громилу
+  [['brute',2,4],['bomber',2,2.5],['gunner',1,4],['rat',4,1],['raider',2,2]],
+  [['gunner',1,2],['brute',1,6],['raider',3,2.5],['bomber',2,4],['brute',1,3],['rat',2,1]],
+  [['boss',1,8],['gunner',1,6],['bomber',2,6],['raider',3,3]]
 ];
 
 const bgc=document.createElement('canvas');bgc.width=W;bgc.height=H;
@@ -301,7 +306,7 @@ function startWave(){
 function spawn(type,o){
   const e=EN[type],k=(1+BAL.waveHp*(S.wave-1))*((o&&o.hp)||1);
   const x=type==='boss'?320:Math.floor(Math.random()*COLS)*C+40+(Math.random()*30-15);
-  S.enemies.push({type,gy:GUNY+Math.round(Math.random()*90-45),x,y:-30,hp:e.hp*k,max:e.hp*k,slow:false,acd:0,drop:o&&o.drop});
+  S.enemies.push({type,gy:GUNY+Math.round(Math.random()*60-30),x,y:-30,hp:e.hp*k,max:e.hp*k,slow:false,acd:0,drop:o&&o.drop});
 }
 function hit(e,dmg,crit){
   if(e.dead)return;e.hp-=dmg;
@@ -343,7 +348,7 @@ function shotFx(u,e,melee,strong){
 function attack(u,e,mult,forceCrit){
   const w=wpn(u),crit=forceCrit||Math.random()<BAL.crit[0];
   u.ang=Math.atan2(e.y-u.y,e.x-u.x);
-  const land=()=>{hit(e,w.dmg*mult*(crit?BAL.crit[1]:1),crit);shotFx(u,e,w.melee,mult>1||crit)};
+  const land=()=>{if(EN[e.type].armor&&!(e.crip>0||e.stun>0)&&!e.dead&&Math.random()<.3)S.fx.push({k:'txt',x:e.x,y:e.y-50,t:'БРОНЯ',life:.5,max:.5});hit(e,w.dmg*mult*(crit?BAL.crit[1]:1)*(e.stun>0?BAL.aim.stunVuln:1)*(EN[e.type].armor&&!(e.crip>0||e.stun>0)?EN[e.type].armor:1),crit);shotFx(u,e,w.melee,mult>1||crit)};
   // у бойца с анимацией удара урон приходит в момент удара, а не в начале замаха
   if(UA[u.id+u.w]){if(!(u.at>0))u.at=.58;(S.later||(S.later=[])).push({t:.27,f:land})}else land();
 }
@@ -475,7 +480,7 @@ function step(dt){
   if(S.door<=0){S.door=0;end(false);return}
   if(S.active&&!IDS.some(id=>S.units[id].w>=0&&!S.units[id].out)){end(false,1);return} // защищать бункер некому
   if(S.active&&!S.queue.length&&!S.enemies.length){
-    S.active=false;S.scrap+=BAL.waveScrap[0]+BAL.waveScrap[1]*S.wave;S.score+=100*S.wave+Math.round(S.door)*2;
+    S.active=false;S.door=Math.min(100,S.door+BAL.doorRepair);S.scrap+=BAL.waveScrap[0]+BAL.waveScrap[1]*S.wave;S.score+=100*S.wave+Math.round(S.door)*2;
     if(S.wave<WAVES.length)S.banner={t:'ПОБЕДА',s:'Волна '+S.wave+' отбита · +'+(BAL.waveScrap[0]+BAL.waveScrap[1]*S.wave)+' скрапа',life:2.8};
     for(const id of IDS){const T=S.units[id];if(T.w>=0){T.out=false;T.hp=tmax(T)}}ui();
     if(S.wave>=WAVES.length){S.score+=1000+Math.round(S.door)*10;end(true)}
