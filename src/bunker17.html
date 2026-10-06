@@ -337,7 +337,7 @@ const ux=id=>(LV.geo||GEO_BUNKER).xs[id],uy=id=>HOME_Y+(id==='hero'?-9:0);
 const LEVELS={
   prolog:{name:'Пролог. Бункер 17',waves:WAVES_PROLOG,tips:[],heroW:4,note:'черновик: бой с винтовкой, сценарного падения стены пока нет'},
   village:{name:'Уровень 1. Поселок',waves:WAVES_VILLAGE,tips:WTIP_VILLAGE,heroW:0,earn:1,note:'текущие 10 волн, насекомые появятся позже'},
-  dump:{name:'Уровень 2. Свалка',waves:WAVES_VILLAGE,tips:[],heroW:3,camp:1,geo:GEO_DUMP,note:'заглушка: волны Поселка, старт с пистолетом'}
+  dump:{name:'Уровень 2. Свалка',waves:WAVES_VILLAGE,tips:[],heroW:3,camp:1,quiet:1,geo:GEO_DUMP,note:'заглушка: волны Поселка, старт с пистолетом'}
 };
 // кадр: id и pic - что на картинке (пока заглушка); l - реплики по порядку: [кто, текст]. Кто: имя, 'H' - герой (подставляется позывной), '' - подпись по центру кадра, с '~' в начале - голос из рации. hold - кадр без текста сам листается через столько секунд
 const SCENES={
@@ -813,7 +813,8 @@ cv.addEventListener('pointerdown',e=>{
   S.sel=trapAt(c,r)||null;ui();
 });
 const LOG=[]; // сообщения в стиле терминала: слева вверху на поле, сами гаснут и не перехватывают нажатия
-function say(t){if(!M)$('hint').textContent=t;const n=M?36:56,now=performance.now();let l='> ';
+function say(t){if(LV&&LV.quiet)return; // quiet - локация без подсказок в терминале
+  if(!M)$('hint').textContent=t;const n=M?36:56,now=performance.now();let l='> ';
   for(const w of String(t).split(' ')){if(l.length+w.length>n&&l.length>2){LOG.push({t:l,at:now});l='  '}l+=w+' '}
   LOG.push({t:l,at:now});while(LOG.length>(M?5:6))LOG.shift()}
 
