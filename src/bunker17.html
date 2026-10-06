@@ -431,7 +431,7 @@ function hit(e,dmg,crit){
     if(e.type==='bomber')explode(e);
     if(e.type==='raider'||e.type==='gunner'||e.type==='brute'||e.type==='boss')S.fx.push({k:'corpse',b:e.type==='brute'?'b':e.type==='boss'?'k':'',x:e.x,y:e.y+EN[e.type].r+4,flip:Math.random()<.5,life:2.6,max:2.6}); // сраженный рейдер: падает, лежит и испаряется
     if(e.drop){const h=S.units.hero;if(h.w<e.drop){h.w=e.drop;h.scd=0;S.aim=null;const nw=wpn(h);
-      S.fx.push({k:'txt',x:e.x,y:e.y-44,t:nw.name.toUpperCase(),life:1.4,max:1.4});say('Трофей: '+nw.name+'. Rust вооружен. Способность - '+nw.sp.name+'.');ui()}}}
+      S.fx.push({k:'txt',x:e.x,y:e.y-44,t:nw.name.toUpperCase(),life:1.4,max:1.4});say('Трофей: '+nw.name+'. Способность - '+nw.sp.name+'.');ui()}}}
 }
 const tarOn=()=>{const T=S.units.tar;return T.w>=0&&T.field&&!T.out};
 function hurtU(T,d){if(T.out||T.w<0)return;if(T.hp==null)T.hp=tmax(T);T.hp-=d;T.hurt=.25;T.ph=1.6;
@@ -744,8 +744,7 @@ function draw(){
       }
     for(const id of IDS){const T=S.units[id];if(T.w>=0&&T.hp!=null&&(T.hp<tmax(T)||T.field)){const w=id==='tar'?54:40,x=Math.round(T.x-w/2),y=Math.round(T.y-(id==='tar'?98:70));g.fillStyle='#17130e';g.fillRect(x-1,y-1,w+2,7);g.fillStyle=T.out?'#c2552d':'#8fbf5a';g.fillRect(x,y,w*Math.max(0,T.hp)/tmax(T),5)}}
     if(SU.w>=0&&!SU.out){const x=Math.round(SU.x),y=Math.round(SU.y-(S.selU==='tar'?112:84)+Math.sin(performance.now()/260)*2);
-      g.fillStyle='#f2a93b';g.strokeStyle='#17130e';g.lineWidth=1.5;g.beginPath();g.moveTo(x-7,y);g.lineTo(x+7,y);g.lineTo(x,y+8);g.closePath();g.fill();g.stroke();
-      if(SU.wx!=null&&!SU.field&&Math.abs(SU.wx-SU.x)>4){g.fillStyle='#f2a93b';g.fillRect(Math.round(SU.wx)-6,Math.round(SU.y+26),12,2)}}}
+      g.fillStyle='#f2a93b';g.strokeStyle='#17130e';g.lineWidth=1.5;g.beginPath();g.moveTo(x-7,y);g.lineTo(x+7,y);g.lineTo(x,y+8);g.closePath();g.fill();g.stroke();}}
   {const k=Math.max(0,S.door/100),x=120,y=926,w=400,h=18;
     g.fillStyle='#17130e';g.fillRect(x-2,y-2,w+4,h+4);
     g.fillStyle=k>.5?'#8fbf5a':k>.25?'#f2a93b':'#c2552d';g.fillRect(x,y,w*k,h);
@@ -820,6 +819,7 @@ cv.addEventListener('pointerdown',e=>{
   S.sel=trapAt(c,r)||null;ui();
 });
 const LOG=[]; // сообщения в стиле терминала: слева вверху на поле, сами гаснут и не перехватывают нажатия
+const hint=t=>{if(!M)$('hint').textContent=t}; // строка под полем на десктопе: состояние интерфейса, в терминал не пишется
 function say(t){if(LV&&LV.quiet)return; // quiet - локация без подсказок в терминале
   if(!M)$('hint').textContent=t;const n=M?36:56,now=performance.now();let l='> ';
   for(const w of String(t).split(' ')){if(l.length+w.length>n&&l.length>2){LOG.push({t:l,at:now});l='  '}l+=w+' '}
@@ -913,9 +913,9 @@ function ui(){
   for(const id of IDS)buy[id].hidden=true; // покупки переехали в лавку Виктора
   tb.querySelector('b').textContent='x'+(S.trapInv||0);$('build').hidden=!!S.sel||M||!(S.trapInv>0||S.pick);$('sel').hidden=!S.sel;
   if(M){$('mSpeed').textContent='x'+S.speed;$('mSpeed').classList.toggle('on',S.speed>1);$('mShop').classList.toggle('on',!!S.pick);$('mShop').hidden=!(S.trapInv>0||S.pick)||S.over;$('mShop').querySelector('b').textContent=S.trapInv||0}
-  if(S.sel){$('sell').innerHTML='Продать ловушку · +'+sellTrap(S.sel)+'<small>осталось '+Math.round(100*S.sel.dur/DUR)+'% прочности</small>';say('Ловушка: враги в этой клетке идут вчетверо медленнее и получают '+WIRE+' урона в секунду. Проволока изнашивается, пока в ней враги.')}
-  else if(S.pick)say('Ловушка: ткни в клетку поля. Повторное нажатие на кнопку снимает выбор.');
-  else if(!M)say('Тап по врагу - метка цели для отряда и способностей. Крупные кнопки - способности, ниже - оружие и найм.');
+  if(S.sel){$('sell').innerHTML='Продать ловушку · +'+sellTrap(S.sel)+'<small>осталось '+Math.round(100*S.sel.dur/DUR)+'% прочности</small>';hint('Ловушка: враги в этой клетке идут вчетверо медленнее и получают '+WIRE+' урона в секунду. Проволока изнашивается, пока в ней враги.')}
+  else if(S.pick)hint('Ловушка: ткни в клетку поля. Повторное нажатие на кнопку снимает выбор.');
+  else hint('');
   $('spLbl').textContent='x'+S.speed;$('spLbl').style.opacity=1;
   $('pause').textContent=M?(S.paused?'▶':'II'):S.paused?'Дальше':'Пауза';$('pause').setAttribute('aria-label',S.paused?'Продолжить':'Пауза');$('pause').classList.toggle('on',S.paused);
   last={};
