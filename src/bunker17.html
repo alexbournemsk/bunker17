@@ -195,7 +195,7 @@ button.go{background:var(--rust);border-color:var(--rust);font-family:var(--disp
     <button id="sell"></button><button id="desel">Назад</button>
   </div>
   <span class="sp"></span>
-  <button id="add500">+500<small>скрап</small></button><input id="scrapIn" type="number" inputmode="numeric" min="0" step="10" placeholder="скрап" aria-label="Установить количество скрапа"><button id="scrapSet">Задать<small>скрап</small></button><button id="full">Сброс<small>новая игра</small></button><button id="spDn" aria-label="Медленнее">−</button><button id="spLbl" disabled>x1</button><button id="spUp" aria-label="Быстрее">+</button>
+  <button id="devShop">Лавка<small>в бою</small></button><button id="add500">+500<small>скрап</small></button><input id="scrapIn" type="number" inputmode="numeric" min="0" step="10" placeholder="скрап" aria-label="Установить количество скрапа"><button id="scrapSet">Задать<small>скрап</small></button><button id="full">Сброс<small>новая игра</small></button><button id="spDn" aria-label="Медленнее">−</button><button id="spLbl" disabled>x1</button><button id="spUp" aria-label="Быстрее">+</button>
   <button id="pause">Пауза</button>
   <button id="wPrev" aria-label="Предыдущая волна">◀</button><button class="go" id="next">Волна 1</button><button id="wNext" aria-label="Следующая волна">▶</button>
 </div>
@@ -330,9 +330,9 @@ const WAVES_PROLOG=[ // черновик: падение стены по сце�
   [['raider',3,2],['brute',2,5]]
 ];
 // геометрия поля локации: wall - кромка стены, куда доходят враги; home - линия ног бойцов; guny - линия стрелков;
-// xs - места бойцов; gate - центр ворот; rows - последний ряд для ловушек; spawn - границы появления врагов по x; bg - ключ фона в ART; sign - надпись на доске [текст,x,y]
+// xs - места бойцов; gate - центр ворот; rows - последний ряд для ловушек; spawn - границы появления врагов по x; bg - ключ фона в ART; gateName - подпись полоски прочности
 const GEO_BUNKER={wall:695,home:750,guny:400,xs:{hero:320,tar:180,bor:460},gate:[320,855],rows:7,spawn:null,bg:'bg',doors:1};
-const GEO_DUMP={wall:630,home:683,guny:335,xs:{hero:320,tar:128,bor:512},gate:[320,825],rows:6,spawn:[110,530],bg:'bg_dump',sign:['СВАЛКА',320,702]};
+const GEO_DUMP={wall:598,home:683,guny:335,xs:{hero:320,tar:128,bor:512},gate:[320,825],rows:6,spawn:[110,530],bg:'bg_dump',gateName:'ВОРОТА'};
 const ux=id=>(LV.geo||GEO_BUNKER).xs[id],uy=id=>HOME_Y+(id==='hero'?-9:0);
 const LEVELS={
   prolog:{name:'Пролог. Бункер 17',waves:WAVES_PROLOG,tips:[],heroW:4,note:'черновик: бой с винтовкой, сценарного падения стены пока нет'},
@@ -648,8 +648,7 @@ const doorStage=()=>{const k=S.door/100;return k>.83?0:k>.67?1:k>.5?2:k>.33?3:k>
 function draw(){
   const SU=S.units[S.selU]||S.units.hero,FOC=SU.focus;
   g.drawImage(bgc,0,0);
-  {const G0=LV.geo||GEO_BUNKER,st=doorStage(),di=IMG['door'+st];if(G0.doors&&st&&ready(di))g.drawImage(di,223,790,194,131); // стадии разрушения пока есть только у двери бункера
-    if(G0.sign){g.fillStyle='#221c14';g.font='15px "Russo One",sans-serif';g.textAlign='center';g.fillText(G0.sign[0],G0.sign[1],G0.sign[2])}}
+  {const G0=LV.geo||GEO_BUNKER,st=doorStage(),di=IMG['door'+st];if(G0.doors&&st&&ready(di))g.drawImage(di,223,790,194,131); } // стадии разрушения пока есть только у двери бункера
   if(S.pick&&S.hover){const[c,r]=S.hover;
     g.fillStyle=canBuild(c,r)?'rgba(143,191,90,.25)':'rgba(194,85,45,.3)';g.fillRect(c*C,r*C,C,C)}
   for(const t of S.traps){const x=t.c*C+40,y=t.r*C+40,ti=IMG.trap;
@@ -744,7 +743,7 @@ function draw(){
     g.fillStyle='#17130e';g.fillRect(x-2,y-2,w+4,h+4);
     g.fillStyle=k>.5?'#8fbf5a':k>.25?'#f2a93b':'#c2552d';g.fillRect(x,y,w*k,h);
     g.fillStyle='#fff';g.font='13px "JetBrains Mono",monospace';g.textAlign='center';
-    g.fillText(((LV.geo||GEO_BUNKER).sign?'ВОРОТА ':'ДВЕРЬ ')+Math.max(0,Math.round(S.door))+' / 100',x+w/2,y+14)}
+    g.fillText((((LV.geo||GEO_BUNKER).gateName||'ДВЕРЬ')+' ')+Math.max(0,Math.round(S.door))+' / 100',x+w/2,y+14)}
   if(S.showR&&performance.now()<S.showR.until){const u=S.units[S.showR.id];
     if(u.w>=0&&wpn(u).sp.r){const r=wpn(u).sp.r;g.save();g.setLineDash([10,8]);g.strokeStyle='#ffe08a';g.fillStyle='rgba(255,224,138,.10)';g.lineWidth=3;
       g.beginPath();g.arc(u.x,u.y,r,Math.PI,2*Math.PI);g.fill();g.stroke();g.restore()}}
@@ -809,7 +808,7 @@ cv.addEventListener('pointerdown',e=>{
     else if(U.field){U.goal=null;say('Тарук возвращается на стену.')}
     else U.wx=Math.max(28,Math.min(W-28,p[0]));
     S.sel=null;ui();return}
-  if(near){U.focus=near;S.sel=null;ui();say(UNITS[S.selU].name+' бьет отмеченную цель.');return}
+  if(near){U.focus=near;S.sel=null;ui();return}
   if(p[1]>=WALL-25&&U.w>=0){U.wx=Math.max(28,Math.min(W-28,p[0]));S.sel=null;ui();return}
   S.sel=trapAt(c,r)||null;ui();
 });
@@ -879,7 +878,7 @@ if(M){
   const sp=mk('mSpeed','x1');sp.setAttribute('aria-label','Скорость игры');sp.onclick=()=>{S.speed=S.speed>=2?1:2;ui()};
   const gear=mk('mDev','DEV');gear.setAttribute('aria-label','Панель разработчика');
   const dev=document.createElement('div');dev.id='dev';dev.hidden=true;
-  for(const id of ['add500','scrapIn','scrapSet','full','spDn','spLbl','spUp','wPrev','wNext'])dev.appendChild($(id));
+  for(const id of ['devShop','add500','scrapIn','scrapSet','full','spDn','spLbl','spUp','wPrev','wNext'])dev.appendChild($(id));
   document.body.appendChild(dev);
   gear.onclick=()=>{dev.hidden=!dev.hidden;gear.classList.toggle('on',!dev.hidden)};
   const tools=document.createElement('span');tools.className='tools';tools.append(sp,$('pause'),gear);hd.appendChild(tools);
@@ -956,25 +955,26 @@ function startLevel(id){LV=LEVELS[id];setGeo();WAVES=LV.waves;WTIP=LV.tips;$('sW
   S.scrap=0;S.trapInv=0;
   if(LV.camp){S.scrap=CAMP.scrap;S.trapInv=CAMP.traps;S.units.hero.w=Math.max(LV.heroW||0,CAMP.w||0);for(const id of IDS)if(CAMP.hire[id])S.units[id].w=0} // бой на Свалке берет запас из лавки
 last={};ui();say(LV.name+(LV.note?' ('+LV.note+')':''))}
-let mview='world',mloc=null;
+let mview='world',mloc=null,devShop=false;
 function drawMap(){const w=$('mworld'),lc=$('mloc'),ls=$('mlist');w.hidden=mview!=='world';lc.hidden=mview!=='loc';$('mshop').hidden=mview!=='shop';ls.hidden=mview!=='list';
-  $('mtitle').textContent=mview==='shop'?'Лавка Виктора':mview==='loc'?mloc.name:mview==='list'?'Оглавление':'БУНКЕР 17';$('mup').hidden=mview==='world';$('mtoc').hidden=mview!=='world';
+  $('mup').textContent=devShop?'‹ В бой':'‹ Карта';$('mtitle').textContent=mview==='shop'?(devShop?'Лавка (DEV)':'Лавка Виктора'):mview==='loc'?mloc.name:mview==='list'?'Оглавление':'БУНКЕР 17';$('mup').hidden=mview==='world';$('mtoc').hidden=mview!=='world';
   const pin=(box,o,fn)=>{const b=document.createElement('button');b.type='button';b.className='pin'+(o.locked?' lock':'');b.style.left=o.x+'%';b.style.top=o.y+'%';
     b.innerHTML='<i></i><b>'+o.name+'</b>'+(o.note||o.locked?'<small>'+(o.note||o.locked)+'</small>':'');if(o.locked)b.disabled=true;else b.onclick=fn;box.appendChild(b)};
   if(mview==='world'){w.innerHTML='<svg viewBox="0 0 100 100" preserveAspectRatio="none"><polyline points="'+WORLD.filter(l=>!l.locked).map(l=>l.x+','+l.y).join(' ')+'"/><polyline class="far" points="'+WORLD.slice(-2).map(l=>l.x+','+l.y).join(' ')+'"/></svg>';
     for(const l of WORLD)pin(w,l,()=>{mview='loc';mloc=l;drawMap()})}
   if(mview==='loc'){lc.innerHTML='<span class="ph">карта локации - заглушка</span>';
-    for(const pl of mloc.places)pin(lc,pl,pl.shop?()=>{mview='shop';drawMap()}:()=>runSeq(pl.run,()=>{mview='loc';openMenu()}))}
-  if(mview==='shop'){const sh=$('mshop'),hw=UNITS.hero.weapons,it=[];
-    if((CAMP.w||0)<4)it.push({n:hw[4].name,d:'урон '+hw[4].dmg+', радиус '+(hw[4].r/C).toFixed(1)+', прицельный выстрел на все поле',c:hw[4].cost,img:ART.shop4,f:()=>{CAMP.w=4}});
+    for(const pl of mloc.places)pin(lc,pl,pl.shop?()=>{devShop=false;mview='shop';drawMap()}:()=>runSeq(pl.run,()=>{mview='loc';openMenu()}))}
+  if(mview==='shop'){const sh=$('mshop'),hw=UNITS.hero.weapons,it=[],D=devShop, // D - лавка из DEV-панели: покупки идут прямо в текущий бой
+      hw0=D?S.units.hero.w:(CAMP.w||0),scr=D?S.scrap:CAMP.scrap,tr=D?(S.trapInv||0):CAMP.traps,has=id=>D?S.units[id].w>=0:!!CAMP.hire[id];
+    if(hw0<4)it.push({n:hw[4].name,d:'урон '+hw[4].dmg+', радиус '+(hw[4].r/C).toFixed(1)+', прицельный выстрел на все поле',c:hw[4].cost,img:ART.shop4,f:()=>{if(D){S.units.hero.w=4;S.units.hero.scd=0}else CAMP.w=4}});
     else it.push({n:hw[4].name,d:'уже куплена',c:0,img:ART.shop4,own:1});
-    it.push({n:'Ловушка',d:'колючка: замедляет, ранит, изнашивается. В запасе: '+CAMP.traps,c:TRAP,img:ART.trap,f:()=>{CAMP.traps++}});
-    for(const id of ['tar','bor'])it.push(CAMP.hire[id]?{n:UNITS[id].name,d:'в отряде',c:0,img:ART['pt_'+id],own:1}:{n:'Нанять: '+UNITS[id].name,d:UNITS[id].weapons[0].name,c:UNITS[id].hire,img:ART['pt_'+id],f:()=>{CAMP.hire[id]=1}});
-    sh.innerHTML='<p class="scr">Скрап: <b>'+CAMP.scrap+'</b></p>';
-    for(const x of it){const b=document.createElement('button');b.type='button';b.disabled=!!x.own||CAMP.scrap<x.c;
+    it.push({n:'Ловушка',d:'колючка: замедляет, ранит, изнашивается. В запасе: '+tr,c:TRAP,img:ART.trap,f:()=>{if(D)S.trapInv=tr+1;else CAMP.traps++}});
+    for(const id of ['tar','bor'])it.push(has(id)?{n:UNITS[id].name,d:'в отряде',c:0,img:ART['pt_'+id],own:1}:{n:'Нанять: '+UNITS[id].name,d:UNITS[id].weapons[0].name,c:UNITS[id].hire,img:ART['pt_'+id],f:()=>{if(D)S.units[id].w=0;else CAMP.hire[id]=1}});
+    sh.innerHTML='<p class="scr">Скрап: <b>'+scr+'</b></p>';
+    for(const x of it){const b=document.createElement('button');b.type='button';b.disabled=!!x.own||scr<x.c;
       b.innerHTML='<img alt="" src="'+x.img+'"><span>'+x.n+'<small>'+x.d+'</small></span>'+(x.own?'':'<b>'+x.c+'</b>');
-      b.onclick=()=>{CAMP.scrap-=x.c;x.f();saveCamp();drawMap()};sh.appendChild(b)}
-    const nt=document.createElement('p');nt.className='nt';nt.textContent='Скрап приходит из отбитых боев в Поселке и на Свалке. Покупки действуют в бою у ворот Свалки.';sh.appendChild(nt)}}
+      b.onclick=()=>{if(D){S.scrap-=x.c;S.cheat=true}else CAMP.scrap-=x.c;x.f();if(!D)saveCamp();drawMap()};sh.appendChild(b)}
+    const nt=document.createElement('p');nt.className='nt';nt.textContent=D?'Лавка разработчика: покупки сразу действуют в текущем бою, скрап берется из боя. Такой забег не идет в рекорды и в запас.':'Скрап приходит из отбитых боев в Поселке и на Свалке. Покупки действуют в бою у ворот Свалки.';sh.appendChild(nt)}}
 function openMenu(){S.paused=true;S.aim=null;$('mback').hidden=!(S.wave>0||S.active)||S.over;drawMap();$('menu').hidden=false;ui()}
 function closeMenu(){$('menu').hidden=true;S.paused=false;ui()}
 function runSeq(items,end){seq=items;seqEnd=end;seqStep(0)}
@@ -1002,7 +1002,8 @@ STORY.forEach((it,i)=>{const b=document.createElement('button');b.type='button';
   b.innerHTML=it.scene?SCENES[it.scene].name+'<small>'+SCENES[it.scene].frames.length+' кадр., '+SCENES[it.scene].frames.reduce((n,f)=>n+f.l.length,0)+' реплик, картинки - заглушки</small>':LEVELS[it.level].name+'<small>'+LEVELS[it.level].waves.length+' волн · '+LEVELS[it.level].note+'</small>';
   b.onclick=()=>runSeq(STORY.slice(i),()=>{mview='list';openMenu()});$('mlist').appendChild(b)});
 $('mback').onclick=closeMenu;$('toMenu').onclick=openMenu;$('cont').onclick=()=>seqStep(seqI+1);
-$('mup').onclick=()=>{mview=mview==='shop'?'loc':'world';drawMap()};$('mtoc').onclick=()=>{mview='list';drawMap()};
+$('mup').onclick=()=>{if(devShop){devShop=false;mview='world';closeMenu();return}mview=mview==='shop'?'loc':'world';drawMap()};
+$('devShop').onclick=()=>{if(S.over)return;devShop=true;mview='shop';if(M){$('dev').hidden=true;$('mDev').classList.remove('on')}openMenu()};$('mtoc').onclick=()=>{mview='list';drawMap()};
 {const mb=document.createElement('button');mb.id='mMenu';mb.type='button';mb.textContent=M?'≡':'Меню';mb.setAttribute('aria-label','Меню локаций и сцен');mb.onclick=openMenu;
   if(M)document.querySelector('header .tools').prepend(mb);else $('bar').insertBefore(mb,$('pause'))}
 {const hn=$('hname');let nm='';try{nm=localStorage.getItem('b17name')||''}catch(e){}
