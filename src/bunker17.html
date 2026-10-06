@@ -31,6 +31,26 @@ button:hover{border-color:var(--dim)}
 button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
 button.on{border-color:var(--amber);color:var(--amber)}
 button:disabled{opacity:.45;cursor:default}
+#menu,#scene{position:fixed;inset:0;z-index:20;background:#0d0b08;display:flex;flex-direction:column;align-items:center;overflow:auto}
+.mwrap{width:min(100%,420px);padding:22px 16px 28px;box-sizing:border-box;display:flex;flex-direction:column;gap:10px}
+#menu h2{margin:0 0 4px;font:400 28px var(--display);letter-spacing:.08em;color:var(--amber);text-align:center}
+.mname{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--dim)}
+.mname input{flex:1;min-width:0;min-height:40px;padding:0 10px;background:#17130e;border:2px solid var(--line);color:var(--fg);font:inherit;font-size:15px}
+#mlist{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+#mlist button{width:100%;min-height:48px;text-align:left;padding:6px 12px;display:block}
+#mlist button small{display:block;color:var(--dim);font-size:11px}
+#mlist button.lv{border-color:var(--amber);font-family:var(--display);font-size:15px;letter-spacing:.03em}
+#mlist button.sc{margin-left:22px;width:calc(100% - 22px);min-height:40px;font-size:13px}
+#mlist button.cur{background:#3a2a10}
+#scene{justify-content:center;gap:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+#scFrame{width:min(100%,640px);aspect-ratio:16/9;background:#1b1610;border-block:2px solid var(--line);position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:12px;box-sizing:border-box}
+#scNum{font:400 34px var(--display);color:#4a3d2a}#scPic{color:#7d6b4e;font-size:13px}
+#scCap{position:absolute;inset:auto 12px 14px;font:400 17px var(--display);letter-spacing:.05em;color:var(--fg)}
+#scText{width:min(100%,640px);min-height:92px;background:#221c14;padding:12px 16px;box-sizing:border-box;font-size:15px;line-height:1.45;text-align:left}
+#scWho{display:block;color:var(--amber);font:400 14px var(--display);letter-spacing:.05em;margin-bottom:4px}
+#scText.radio #scLine{color:var(--amber)}
+#scHint{margin-top:10px;font-size:11px;color:#5d5140}
+#scSkip{position:absolute;top:10px;right:12px;min-height:40px;padding:0 12px;font-size:12px}
 button,canvas{-webkit-tap-highlight-color:transparent}
 button.go{background:var(--rust);border-color:var(--rust);font-family:var(--display);font-size:15px;letter-spacing:.04em;color:#fff}
 .sp{flex:1}
@@ -116,7 +136,7 @@ button.go{background:var(--rust);border-color:var(--rust);font-family:var(--disp
   <h1>БУНКЕР 17</h1>
   <span class="stat">скрап <b id="sScrap">0</b></span>
   <span class="stat">дверь <b id="sDoor">0</b></span>
-  <span class="stat">волна <b><span id="sWave">0</span>/10</b></span>
+  <span class="stat">волна <b><span id="sWave">0</span>/<span id="sWaveN">10</span></b></span>
   <span class="stat">очки <b id="sScore">0</b></span>
 </header>
 
@@ -129,10 +149,23 @@ button.go{background:var(--rust);border-color:var(--rust);font-family:var(--disp
     <p id="lbNote"></p>
     <ol id="top"></ol>
     <div class="ovb"><button class="go" id="retry" type="button">Повторить волну</button>
-    <button id="again" type="button">Новая игра</button></div>
+    <button class="go" id="cont" type="button" hidden>Дальше</button>
+    <button id="again" type="button">Заново</button><button id="toMenu" type="button">Меню</button></div>
   </div>
 </div>
 
+<div id="menu" hidden><div class="mwrap">
+  <h2>БУНКЕР 17</h2>
+  <label class="mname">Позывной<input id="hname" maxlength="16" autocomplete="off" placeholder="Семнадцатый"></label>
+  <div id="mlist"></div>
+  <button id="mback" type="button" hidden>Вернуться в бой</button>
+</div></div>
+<div id="scene" hidden>
+  <button id="scSkip" type="button">Пропустить</button>
+  <div id="scFrame"><span id="scNum"></span><span id="scPic"></span><span id="scCap"></span></div>
+  <div id="scText"><b id="scWho"></b><span id="scLine"></span></div>
+  <div id="scHint">тап - дальше</div>
+</div>
 <p id="hint"></p>
 <div id="rot">Поверни телефон вертикально</div>
 <div id="squad" class="grp"></div>
@@ -222,7 +255,7 @@ const HOME_Y=750;
 const GUNY=400,GUARD=150,TSPD=130,HOLD=3,AGGRO=150; // БАЛАНС: линия стрелков; у Тарука в поле - радиус охраны, скорость, сколько врагов держит, радиус, с которого враги на него сворачивают
 const tmax=u=>u.id==='tar'?BAL.hp.tar[u.w>0?1:0]:BAL.hp[u.id]; // здоровье бойца
 // первые волны учат прицельному удару: по одной новой задаче на волну
-const WTIP=['Две матерые крысы. Кнопка камня - прицельный бросок: выбери цель, потом зону. Ноги - замедлить.',
+const WTIP_VILLAGE=['Две матерые крысы. Кнопка камня - прицельный бросок: выбери цель, потом зону. Ноги - замедлить.',
   'Крысы и рейдер-разведчик. У рейдера пистолет - сними его.',
   'Стрелок встает вдали и бьет по бойцам на стене. Выстрел по рукам - он замолчит.',
   'Подрывник бежит к двери. По ногам - не добежит. По рукам - взорвется на месте и заденет соседей.',
@@ -256,7 +289,7 @@ function aimTap(p){const u=S.units.hero,A=S.aim;
   if(!near){S.aim=null;ui();return}
   if(dist(u,near)>aimR(u)+EN[near.type].r){say('Слишком далеко для прицельного удара.');return}
   A.tg=near}
-const WAVES=[
+const WAVES_VILLAGE=[
   [['rat',2,4,{hp:3}]], // 4-й элемент: hp - множитель здоровья, drop - номер оружия Раста, которое падает с врага
   [['rat',2,3,{hp:2}],['raider',1,1,{drop:3}]],
   [['raider',2,7],['rat',2,5],['gunner',1,6],['raider',1,1]],
@@ -272,11 +305,51 @@ const WAVES=[
 const bgc=document.createElement('canvas');bgc.width=W;bgc.height=H;
 const bgi=new Image();bgi.onload=()=>bgc.getContext('2d').drawImage(bgi,0,0,W,H);bgi.src=ART.bg;
 
+// ===== КАМПАНИЯ: уровни, сцены и порядок истории. Тексты сцен правятся здесь =====
+const WAVES_PROLOG=[ // черновик: падение стены по сценарию еще не сделано
+  [['rat',4,1.5]],
+  [['rat',4,1],['raider',2,3]],
+  [['raider',3,2],['brute',2,5]]
+];
+const LEVELS={
+  prolog:{name:'Пролог. Бункер 17',waves:WAVES_PROLOG,tips:[],heroW:4,note:'черновик: бой с винтовкой, сценарного падения стены пока нет'},
+  village:{name:'Уровень 1. Поселок',waves:WAVES_VILLAGE,tips:WTIP_VILLAGE,heroW:0,note:'текущие 10 волн, насекомые появятся позже'},
+  dump:{name:'Уровень 2. Свалка',waves:WAVES_VILLAGE,tips:[],heroW:3,note:'заглушка: волны Поселка, старт с пистолетом'}
+};
+// кадр: id и pic - что на картинке (пока заглушка), who и text - реплика, cap - подпись по центру, hold - сам листается через столько секунд
+const SCENES={
+  1:{name:'Сцена 1. Заставка',frames:[
+    {id:'1.1',pic:'Бункер в пустоши',cap:'80 лет после Вспышки. Бункер 17'},
+    {id:'1.2',pic:'Вера у пульта связи',who:'Вера',text:'Семнадцатый, прием. Ужин стынет.'},
+    {id:'1.3',pic:'Герой и Глеб на посту',who:'Глеб',text:'Слыхал? Тебя ждут. А меня нет.'}]},
+  2:{name:'Сцена 2. Спасение',frames:[
+    {id:'2.1',pic:'Дым. Глеб тащит героя к люку'},
+    {id:'2.2',pic:'Глеб отдает рацию',who:'Глеб',text:'Слушай эфир. Вера на связи.'},
+    {id:'2.3',pic:'Люк закрывается. Темнота'}]},
+  3:{name:'Сцена 3. Пустошь',frames:[
+    {id:'3.1',pic:'Герой в песке, тень человека с молотом'},
+    {id:'3.2',pic:'Хижина Тарука',who:'Тарук',text:'Три дня тащил. Мне по следу идти - сестру увели. Стена твоя.'}]},
+  4:{name:'Сцена 4. Костер',frames:[
+    {id:'4.1',pic:'Ночь, костер, рация на колене',who:'Вера',radio:1,text:'Семнадцатый, прием. Ужин стынет... Нас ведут на север.'},
+    {id:'4.2',pic:'Герой давит кнопку передачи',who:'Тарук',text:'Она не слышит. Чинить умеют на Свалке.'}]},
+  5:{name:'Сцена 5. Свалка',frames:[
+    {id:'5.1',pic:'Ворота из автомобильных кузовов'},
+    {id:'5.2',pic:'Лавка Виктора',who:'Виктор',text:'Бункерная. Я такие паял. В Девятом.'},
+    {id:'5.3',pic:'Рация вскрыта',who:'Виктор',text:'Передатчик мертв. И пленку зажевало. После боя гляну.'}]},
+  6:{name:'Сцена 6. Пленка',frames:[
+    {id:'6.1',pic:'Лавка, ночь. Виктор расправляет пленку',who:'Виктор',text:'Тут запись. Последняя передача.'},
+    {id:'6.2',pic:'Катушки крутятся',who:'Голос Глеба',radio:1,text:'Девятый, я шлюз. Код три-один-семь. Брата верните.'},
+    {id:'6.3',pic:'Лицо героя крупно',hold:3},
+    {id:'6.4',pic:'Рация оживает',who:'Вера',radio:1,text:'Семнадцатый, прием...',cap:'Продолжение следует'}]}
+};
+const STORY=[{scene:1},{level:'prolog'},{scene:2},{scene:3},{level:'village'},{scene:4},{scene:5},{level:'dump'},{scene:6}];
+let LV=LEVELS.village,WAVES=LV.waves,WTIP=LV.tips,storyI=-1; // текущий уровень и место в истории
+
 let S;
 function reset(){
   S={score:0,cheat:false,scrap:BAL.scrap0,door:100,wave:0,active:false,t:0,queue:[],enemies:[],traps:[],fx:[],
      selU:'hero',pick:false,sel:null,hover:null,speed:1,paused:false,over:false,units:{}};
-  for(const id of IDS)S.units[id]={id,x:UNITS[id].x,y:UNITS[id].y,w:id==='hero'?0:-1,cd:0,scd:0,ang:-Math.PI/2};
+  for(const id of IDS)S.units[id]={id,x:UNITS[id].x,y:UNITS[id].y,w:id==='hero'?(LV.heroW||0):-1,cd:0,scd:0,ang:-Math.PI/2};
   $('over').hidden=true;ui();
 }
 const wpn=u=>UNITS[u.id].weapons[u.w];
@@ -478,7 +551,8 @@ function step(dt){
 function end(win,wiped){
   S.over=true;
   $('overT').textContent=win?'Бункер выстоял':wiped?'Отряд выбыл':'Дверь пробита';S.aim=null;
-  $('overP').textContent=win?'Все 10 волн отбиты. Прочность двери: '+S.door+'.':'Ты продержался до волны '+S.wave+'.';
+  $('overP').textContent=win?LV.name+': все волны отбиты. Прочность двери: '+Math.round(S.door)+'.':'Ты продержался до волны '+S.wave+'.';
+  $('cont').hidden=!(win&&storyI>=0);
   $('retry').hidden=win||!S.cp;if(!win)$('retry').textContent='Повторить волну '+S.wave;
   $('overS').textContent='Очки: '+S.score;S.sent=false;S.win=win;
   $('nameForm').hidden=S.cheat;$('send').disabled=false;
@@ -740,6 +814,7 @@ $('full').onclick=()=>{const b=$('full');
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('button');if(b)b.blur()});
 addEventListener('keyup',e=>{if(e.key===' ')e.preventDefault()});
 addEventListener('keydown',e=>{
+  if(!$('menu').hidden||!$('scene').hidden){if(!$('scene').hidden&&(e.key===' '||e.key==='Enter')){e.preventDefault();$('scFrame').click()}return}
   if(e.key===' '){e.preventDefault();if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();startWave()}
   else if(e.key==='p'||e.key==='з')$('pause').click();
   else if('123'.includes(e.key))special(S.units[IDS[+e.key-1]]);
@@ -821,9 +896,40 @@ function start(d){reset();
   if(d&&d.units){S.score=d.score||0;S.cheat=!!d.cheat;S.scrap=d.scrap;S.door=d.door;S.wave=d.wave;S.traps=(d.traps||[]).map(t=>({dur:DUR,...t}));S.speed=d.speed||1;
     for(const id of IDS)if(d.units[id]!=null)S.units[id].w=d.units[id];ui()}
   fit();requestAnimationFrame(frame)}
+// ===== меню локаций и плеер сцен =====
+function startLevel(id){LV=LEVELS[id];WAVES=LV.waves;WTIP=LV.tips;$('sWaveN').textContent=WAVES.length;reset();last={};ui();say(LV.name+(LV.note?' ('+LV.note+')':''))}
+function openMenu(){S.paused=true;S.aim=null;$('mback').hidden=!(S.wave>0||S.active)||S.over;
+  [...$('mlist').children].forEach((b,i)=>b.classList.toggle('cur',i===storyI));$('menu').hidden=false;ui()}
+function closeMenu(){$('menu').hidden=true;S.paused=false;ui()}
+function play(i){storyI=i;const it=STORY[i];$('over').hidden=true;
+  if(!it){storyI=-1;openMenu();return}
+  $('menu').hidden=true;
+  if(it.scene)showScene(it.scene,()=>play(i+1));else{$('scene').hidden=true;startLevel(it.level)}}
+let sc=null;
+function showScene(n,done){sc={f:SCENES[n].frames,i:-1,done,tm:0,ty:0};S.paused=true;$('scene').hidden=false;sceneNext()}
+function sceneNext(){clearTimeout(sc.tm);clearInterval(sc.ty);sc.i++;const f=sc.f[sc.i];
+  if(!f){const d=sc.done;sc=null;$('scene').hidden=true;S.paused=false;d();return}
+  $('scNum').textContent='кадр '+f.id;$('scPic').textContent=f.pic||'';$('scCap').textContent=f.cap||'';
+  $('scWho').textContent=f.who?(f.radio?'ЭФИР · ':'')+f.who:'';$('scText').classList.toggle('radio',!!f.radio);
+  const el=$('scLine'),t=f.text||'';let k=0;el.textContent='';sc.full=!t;
+  if(t)sc.ty=setInterval(()=>{k++;el.textContent=t.slice(0,k);if(k>=t.length){clearInterval(sc.ty);sc.full=true}},28);
+  if(f.hold)sc.tm=setTimeout(sceneNext,f.hold*1000)}
+$('scene').onclick=e=>{if(!sc)return;if(e.target.id==='scSkip'){sc.i=sc.f.length;sceneNext();return}
+  if(!sc.full){clearInterval(sc.ty);$('scLine').textContent=sc.f[sc.i].text||'';sc.full=true}else sceneNext()};
+STORY.forEach((it,i)=>{const b=document.createElement('button');b.type='button';b.className=it.scene?'sc':'lv';
+  b.innerHTML=it.scene?SCENES[it.scene].name+'<small>'+SCENES[it.scene].frames.length+' кадра, заглушки вместо картинок</small>':LEVELS[it.level].name+'<small>'+LEVELS[it.level].waves.length+' волн · '+LEVELS[it.level].note+'</small>';
+  b.onclick=()=>play(i);$('mlist').appendChild(b)});
+$('mback').onclick=closeMenu;$('toMenu').onclick=openMenu;$('cont').onclick=()=>play(storyI+1);
+{const mb=document.createElement('button');mb.id='mMenu';mb.type='button';mb.textContent=M?'≡':'Меню';mb.setAttribute('aria-label','Меню локаций и сцен');mb.onclick=openMenu;
+  if(M)document.querySelector('header .tools').prepend(mb);else $('bar').insertBefore(mb,$('pause'))}
+{const hn=$('hname');let nm='';try{nm=localStorage.getItem('b17name')||''}catch(e){}
+  const set=v=>{UNITS.hero.name=v.trim()||'Семнадцатый';last={};if(S)ui()};hn.value=nm;set(nm);
+  hn.addEventListener('keydown',e=>e.stopPropagation());
+  hn.addEventListener('input',()=>{set(hn.value);try{localStorage.setItem('b17name',hn.value.trim())}catch(e){}})}
 const hot=window.claude&&window.claude.hot;
 try{hot&&hot.snapshot&&hot.snapshot(()=>({score:S.score,cheat:S.cheat,scrap:S.scrap,door:S.door,wave:S.active?S.wave-1:S.wave,traps:S.traps,speed:S.speed,
   units:Object.fromEntries(IDS.map(id=>[id,S.units[id].w]))}))}catch(e){}
 if(hot&&hot.ready)hot.ready(start);else start((hot&&hot.data)||{});
+if(location.hash!=='#play')openMenu(); // игра открывается с меню локаций и сцен
 })();
 </script>
