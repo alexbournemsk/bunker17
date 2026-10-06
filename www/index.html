@@ -346,8 +346,13 @@ const WAVES_PROLOG=[ // черновик: падение стены по сце�
 ];
 // геометрия поля локации: wall - кромка стены, куда доходят враги; home - линия ног бойцов; guny - линия стрелков;
 // xs - места бойцов; gate - центр ворот; rows - последний ряд для ловушек; spawn - границы появления врагов по x; bg - ключ фона в ART; gateName - подпись полоски прочности
-const GEO_BUNKER={wall:645,home:702,guny:347,xs:{hero:320,tar:180,bor:460},gate:[320,871],rows:7,spawn:[60,580],bg:'bg',fade:1}; // fade - затемнение верха кодом; у фона Свалки оно уже в картинке
+const GEO_BUNKER={wall:645,home:702,guny:347,xs:{hero:320,tar:180,bor:460},gate:[320,871],rows:7,spawn:[60,580],bg:'bg',fade:1,
+  fgTop:[669,669,669,669,669,669,669,680,680,680,668,682,667,667,667,682,683,683,683,683,683,683,677,677,671,671,672,671,672,672,672,686,686,685,685,685,685,685,684,684,684,684,684,684,684,684,684,684,684,683,683,683,683,683,683,683,683,683,683,683,675,675,674,672,672,671,671,671,671,670,670,670,670,670,670,670,670,670,670,670,670,683,683,683,683,683,683,683,683,683,672,672,672,673,673,673,674,675,675,675,681,681,681,684,684,684,684,684,684,685,685,685,685,685,685,685,685,685,685,685,685,685,685,685,684,679,677,670,670,670,670,670,670,669,669,669,678,668,668,667,667,667,667,667,668,668,683,683,684,684,684,684,684,684,684,684,684,683,681,676,672,671,671,671,671,681,681,681,673,673,673,681,681,681,681,682,682,682,682,682,682,683,683,683,683,683,683,683,683,684,683,678,678,677,677,678,690,690,690,689,689,689,689,689,689,689,689,689,689,687,687,687,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,689,689,689,689,689,689,689,689,689,689,689,689,689,689,689,689,689,689,689,689,689,689,689,689,689,689,689,689,689,689,689,689,689,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,688,689,689,689,689,689,689,689,689,689,689,689,689,689,689,681,678,676,676,675,678,683,684,684,684,684,684,686,686,686,686,686,685,685,685,685,685,684,684,684,673,673,673,673,671,671,671,671,671,671,671,671,671,671,682,684,684,684,684,684,684,669,669,684,683,683,683,683,667,667,667,667,667,668,668,668,668,669,669,670,670,670,671,673,673,677,679,683,683,683,684,684,684,684,684,684,684,684,684,684,684,684,684,684,684,684,684,684,684,681,673,673,675,674,674,674,673,672,672,672,671,671,683,683,683,683,683,683,683,683,683,670,670,670,670,670,670,670,670,670,670,670,670,671,671,671,672,672,674,674,675,679,682,683,683,683,683,683,683,683,669,669,669,669,669,669,669,670,670,670,670,670,681,681,684,684,684,684,684,671,671,671,671,672,674,675,677,679,683,683,683,683,683,683,680,680,680,667,667,667,667,668,680,680,680,669,669,669,669,669,669]}; // fgTop - для каждого x высота, с которой стена и мешки рисуются поверх врагов // fade - затемнение верха кодом; у фона Свалки оно уже в картинке
 const GEO_DUMP={wall:598,home:683,guny:335,xs:{hero:320,tar:128,bor:512},gate:[320,825],rows:6,spawn:[90,550],bg:'bg_dump',gateName:'ВОРОТА'};
+// у стены враг заходит за слой стены: над кромкой остается верхняя часть спрайта (SPV - какая доля высоты видна)
+const SPH={rat:34,raider:74,gunner:74,bomber:74,brute:96,boss:128},SPV=.42;
+const wy=e=>{const t=(LV.geo||GEO_BUNKER).fgTop;if(!t)return WALL;const h=SPH[e.type]||74;return t[Math.max(0,Math.min(W-1,Math.round(e.x)))]-Math.round(h*SPV)-EN[e.type].r-4+h};
+const fgc=document.createElement('canvas');fgc.width=640;fgc.height=960;
 const ux=id=>(LV.geo||GEO_BUNKER).xs[id],uy=id=>HOME_Y+(id==='hero'?-9:0);
 const LEVELS={
   prolog:{name:'Пролог. Бункер 17',waves:WAVES_PROLOG,tips:[],heroW:4,note:'черновик: бой с винтовкой, сценарного падения стены пока нет'},
@@ -453,7 +458,7 @@ function explode(e){if(e.boomed)return;e.boomed=true;e.dead=true;
   spr('wave',e.x,e.y,210,.45);S.fx.push({k:'boom',x:e.x,y:e.y,r:60,life:.3,max:.3});
   for(const o of S.enemies)if(o!==e&&!o.dead&&Math.hypot(o.x-e.x,o.y-e.y)<BAL.bomber.r)hit(o,BAL.bomber.dmg);
   const T=S.units.tar;if(tarOn()&&Math.hypot(T.x-e.x,T.y-e.y)<BAL.bomber.tarR)hurtTar(BAL.bomber.tarDmg);
-  if(e.y>=WALL-40){S.door-=BAL.bomber.door;S.fx.push({k:'txt',x:e.x,y:WALL-10,t:'ВЗРЫВ',life:.8,max:.8})}}
+  if(e.y>=wy(e)-40){S.door-=BAL.bomber.door;S.fx.push({k:'txt',x:e.x,y:WALL-10,t:'ВЗРЫВ',life:.8,max:.8})}}
 function gunShot(e){const T=S.units.tar;let tx,ty;
   if(tarOn()&&Math.hypot(T.x-e.x,T.y-e.y)<BAL.gunner.tarRange){hurtTar(BAL.gunner.dmgTar);tx=T.x;ty=T.y-30}
   else{const c=IDS.map(id=>S.units[id]).filter(u=>u.w>=0&&!u.out&&!u.field);if(!c.length)return;
@@ -541,8 +546,8 @@ function step(dt){
         else{e.fight=true;e.acd-=dt;if(e.acd<=0){e.acd=1;hurtTar(b.atk*BAL.tarTaken*(e.disarm>0?BAL.aim.armsMult:1));spr('hit',T.x,T.y-30,34,.2)}}
         continue}}
     if(e.type==='gunner'&&e.y>=e.gy){e.gs=(e.gs||0)+dt;if(e.fire>0)e.fire-=dt;if(e.disarm>0||e.gs<BAL.gunner.prep)continue;e.acd-=dt;if(e.acd<=0){e.acd=BAL.gunner.rate;gunShot(e)}continue}
-    if(e.y>=WALL&&e.type==='bomber'){explode(e);continue}
-    if(e.y>=WALL){e.y=WALL;e.acd-=dt;
+    if(e.y>=wy(e)&&e.type==='bomber'){explode(e);continue}
+    if(e.y>=wy(e)){e.y=wy(e);e.acd-=dt;
       if(e.acd<=0){e.acd=1;S.door-=b.atk*(e.disarm>0?BAL.aim.armsMult:1);S.fx.push({k:'boom',x:e.x,y:WALL+22,r:16,life:.15,max:.15})}}
     else e.y+=b.speed*(e.slow?SLOW:1)*(e.crip>0?BAL.aim.legsSpeed:1)*dt
   }
@@ -694,7 +699,7 @@ function draw(){
     else if(ready(ei)){
       // шаг привязан к пройденному пути: замедлился или встал - анимация тоже
       const ph=e.y/(e.type==='rat'?4:e.type==='raider'?15:e.type==='brute'?10:12)+e.x;
-      const atWall=e.y>=WALL,lunge=atWall&&e.acd>.8?7:0;
+      const atWall=e.y>=wy(e),lunge=atWall&&e.acd>.8?7:0;
       let lx=0,ly=lunge;
       if(e.fight){const T=S.units.tar,d=Math.hypot(T.x-e.x,T.y-e.y)||1,k=e.acd>.78?10:0;lx=(T.x-e.x)/d*k;ly=(T.y-e.y)/d*k}
       g.save();g.translate(Math.round(e.x+lx),Math.round(e.y+b.r+4+ly));
@@ -723,6 +728,7 @@ function draw(){
     if(e.crip>0){g.fillStyle='#f2a93b';g.fillRect(Math.round(e.x-b.r),Math.round(e.y-top-17),6,6)}
     if(e.disarm>0){g.fillStyle='#c97be0';g.fillRect(Math.round(e.x-b.r)+(e.crip>0?9:0),Math.round(e.y-top-17),6,6)}
   }
+  if((LV.geo||GEO_BUNKER).fgTop)g.drawImage(fgc,0,0); // стена и мешки - поверх врагов, под защитниками
   for(const id of IDS){const u=S.units[id];if(u.w<0)continue;const d=UNITS[id],w=wpn(u),R=d.fat?21:16;
     const hi=IMG[id+u.w];
     if(ready(hi)){g.fillStyle='rgba(0,0,0,.35)';g.beginPath();g.ellipse(u.x,u.y+20,20,7,0,0,7);g.fill();
@@ -968,7 +974,9 @@ function start(d){setGeo();reset();
 function setGeo(){const G0=LV.geo||GEO_BUNKER;WALL=G0.wall;HOME_Y=G0.home;GUNY=G0.guny;
   const bi=IMG[G0.bg],dr=()=>{const c=bgc.getContext('2d');c.drawImage(bi,0,0,W,H);
     if(G0.fade){let gr=c.createLinearGradient(0,0,0,H*.33);gr.addColorStop(0,'rgba(14,8,4,.95)');gr.addColorStop(1,'rgba(14,8,4,0)');c.fillStyle=gr;c.fillRect(0,0,W,H*.33);
-      for(const cx of [0,W]){gr=c.createRadialGradient(cx,0,0,cx,0,W*.55);gr.addColorStop(0,'rgba(14,8,4,.45)');gr.addColorStop(1,'rgba(14,8,4,0)');c.fillStyle=gr;c.fillRect(0,0,W,W*.55)}}};if(bi.complete&&bi.naturalWidth)dr();else bi.addEventListener('load',dr,{once:true})}
+      for(const cx of [0,W]){gr=c.createRadialGradient(cx,0,0,cx,0,W*.55);gr.addColorStop(0,'rgba(14,8,4,.45)');gr.addColorStop(1,'rgba(14,8,4,0)');c.fillStyle=gr;c.fillRect(0,0,W,W*.55)}}
+    const f=fgc.getContext('2d');f.clearRect(0,0,W,H);
+    if(G0.fgTop){f.save();f.beginPath();f.moveTo(0,H);G0.fgTop.forEach((y,x)=>f.lineTo(x,y));f.lineTo(W,G0.fgTop[W-1]);f.lineTo(W,H);f.closePath();f.clip();f.drawImage(bi,0,0,W,H);f.restore()}};if(bi.complete&&bi.naturalWidth)dr();else bi.addEventListener('load',dr,{once:true})}
 function startLevel(id){LV=LEVELS[id];setGeo();WAVES=LV.waves;WTIP=LV.tips;$('sWaveN').textContent=WAVES.length;reset();
   S.scrap=0;S.trapInv=0;
   if(LV.camp){S.scrap=CAMP.scrap;S.trapInv=CAMP.traps;S.units.hero.w=Math.max(LV.heroW||0,CAMP.w||0);for(const id of IDS)if(CAMP.hire[id])S.units[id].w=0} // бой на Свалке берет запас из лавки
