@@ -898,7 +898,7 @@ function ui(){
     ab[id].hidden=u.w<0}
   tb.classList.toggle('on',S.pick);
   for(const id of IDS)buy[id].hidden=true; // покупки переехали в лавку Виктора
-  tb.querySelector('b').textContent='x'+(S.trapInv||0);$('build').hidden=!!S.sel||M;$('sel').hidden=!S.sel;
+  tb.querySelector('b').textContent='x'+(S.trapInv||0);$('build').hidden=!!S.sel||M||!(S.trapInv>0||S.pick);$('sel').hidden=!S.sel;
   if(M){$('mSpeed').textContent='x'+S.speed;$('mSpeed').classList.toggle('on',S.speed>1);$('mShop').classList.toggle('on',!!S.pick);$('mShop').hidden=!(S.trapInv>0||S.pick)||S.over;$('mShop').querySelector('b').textContent=S.trapInv||0}
   if(S.sel){$('sell').innerHTML='Продать ловушку · +'+sellTrap(S.sel)+'<small>осталось '+Math.round(100*S.sel.dur/DUR)+'% прочности</small>';say('Ловушка: враги в этой клетке идут вчетверо медленнее и получают '+WIRE+' урона в секунду. Проволока изнашивается, пока в ней враги.')}
   else if(S.pick)say('Ловушка: ткни в клетку поля. Повторное нажатие на кнопку снимает выбор.');
