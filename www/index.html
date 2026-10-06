@@ -48,7 +48,18 @@ button:disabled{opacity:.45;cursor:default}
 #menu h2{margin:0 0 4px;font:400 28px var(--display);letter-spacing:.08em;color:var(--amber);text-align:center}
 .mname{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--dim)}
 .mname input{flex:1;min-width:0;min-height:40px;padding:0 10px;background:#17130e;border:2px solid var(--line);color:var(--fg);font:inherit;font-size:15px}
-#mlist{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.mhead{display:flex;align-items:center;gap:8px}.mhead h2{flex:1}.mhead button{min-height:40px;padding:0 10px;font-size:12px;flex:none}
+#menu .mhead h2{margin:0;font-size:24px}
+.map{position:relative;width:100%;aspect-ratio:3/4;background:radial-gradient(120% 90% at 50% 40%,#3a2a14 0%,#221a10 55%,#120e09 100%);border:2px solid var(--line);overflow:hidden}
+.map svg{position:absolute;inset:0;width:100%;height:100%}
+.map polyline{fill:none;stroke:#8a6a34;stroke-width:.7;stroke-dasharray:2 2;vector-effect:non-scaling-stroke}.map polyline.far{stroke:#4a3d2a}
+.map .ph{position:absolute;left:8px;top:6px;font-size:11px;color:#5d5140}
+.pin{position:absolute;transform:translate(-50%,-50%);background:none;border:0;min-height:0;padding:6px;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--fg);width:auto;white-space:nowrap}
+.pin i{width:18px;height:18px;border:2px solid var(--amber);background:#3a2a10;transform:rotate(45deg);box-sizing:border-box}
+.pin b{font:400 14px var(--display);letter-spacing:.04em;background:rgba(13,11,8,.8);padding:1px 6px}
+.pin small{font-size:10px;color:var(--dim);background:rgba(13,11,8,.8);padding:0 5px}
+.pin.lock{opacity:.5}.pin.lock i{border-color:var(--line);background:#17130e}
+#mlist{display:flex;flex-direction:column;gap:6px;margin-top:6px}#mlist[hidden]{display:none}
 #mlist button{width:100%;min-height:48px;text-align:left;padding:6px 12px;display:block}
 #mlist button small{display:block;color:var(--dim);font-size:11px}
 #mlist button.lv{border-color:var(--amber);font-family:var(--display);font-size:15px;letter-spacing:.03em}
@@ -170,9 +181,11 @@ button.go{background:var(--rust);border-color:var(--rust);font-family:var(--disp
 </div>
 
 <div id="menu" hidden><div class="mwrap">
-  <h2>БУНКЕР 17</h2>
+  <div class="mhead"><button id="mup" type="button" hidden>‹ Карта</button><h2 id="mtitle">БУНКЕР 17</h2><button id="mtoc" type="button">Список</button></div>
   <label class="mname">Позывной<input id="hname" maxlength="16" autocomplete="off" placeholder="Семнадцатый"></label>
-  <div id="mlist"></div>
+  <div id="mworld" class="map"></div>
+  <div id="mloc" class="map" hidden></div>
+  <div id="mlist" hidden></div>
   <button id="mback" type="button" hidden>Вернуться в бой</button>
 </div></div>
 <div id="scene" hidden>
@@ -360,9 +373,27 @@ const SCENES={
     {id:'6.2',pic:'Катушки крутятся',l:[['~Голос Глеба','Девятый, я шлюз. Прием.'],['~Голос Глеба','Код: четыре-один, семь-ноль, девять-три, пять-два.'],['~Голос Глеба','Дверь откроется снаружи. За пультом никого не будет.'],['~Голос Глеба','Я свое сделал. Брата верните.']]},
     {id:'6.3',pic:'Лицо героя крупно',hold:3,l:[]},
     {id:'6.4',pic:'Рация на прилавке, лампа загорается',l:[['Виктор','Знакомый?'],['H','Друг.'],['Виктор','Тогда чиню бесплатно. Первый раз в жизни.'],['~Вера','Семнадцатый, прием...'],['','Продолжение следует']]}]}
+  ,7:{name:'Бар "Ржавый бак"',frames:[ // черновик: тексты придуманы разработчиком как заглушка, сюда придут слухи и побочные задания
+    {id:'7.1',pic:'Бар в цистерне: стойка из капота, лампа-переноска, трое местных',l:[['','Бар "Ржавый бак"'],['Бармен','Вода - один скрап. Новости - два. Вместе дешевле.'],['H','Давай новости.'],['Бармен','Серые плащи прошли на север неделю назад. С ними человек сорок, на веревке.'],['Бармен','А рейдерам кто-то платит консервами. Хорошими. Раньше они ели то, что поймают.']]},
+    {id:'7.2',pic:'Бармен протирает кружку, за спиной доска с записками',l:[['H','Кому тут нужна помощь?'],['Бармен','Всем. Но платят не все. Загляни, когда отобьете ворота, - доска с работой будет полная.'],['','Побочные задания появятся позже']]}]}
 };
+// карта мира: x, y - положение точки в процентах; places - точки внутри локации, run - что запускается по тапу
+const WORLD=[
+  {id:'b17',name:'Бункер 17',x:50,y:20,places:[
+    {name:'Стена',note:'сцена 1, бой, сцена 2',x:50,y:62,run:[{scene:1},{level:'prolog'},{scene:2}]}]},
+  {id:'village',name:'Поселок',x:27,y:50,places:[
+    {name:'Хижина Тарука',note:'сцена 3',x:28,y:34,run:[{scene:3}]},
+    {name:'Частокол',note:'бой, 10 волн',x:50,y:74,run:[{level:'village'}]},
+    {name:'Костер',note:'сцена 4',x:74,y:38,run:[{scene:4}]}]},
+  {id:'dump',name:'Свалка',x:68,y:80,places:[
+    {name:'Лавка Виктора',note:'сцена 5',x:26,y:30,run:[{scene:5}]},
+    {name:'Бар',note:'слухи, позже задания',x:74,y:34,run:[{scene:7}]},
+    {name:'Ворота',note:'бой, 10 волн',x:50,y:76,run:[{level:'dump'}]},
+    {name:'Лавка ночью',note:'сцена 6',x:24,y:56,run:[{scene:6}]}]},
+  {id:'north',name:'Север',x:72,y:8,locked:'в продолжении'}
+];
 const STORY=[{scene:1},{level:'prolog'},{scene:2},{scene:3},{level:'village'},{scene:4},{scene:5},{level:'dump'},{scene:6}];
-let LV=LEVELS.village,WAVES=LV.waves,WTIP=LV.tips,storyI=-1; // текущий уровень и место в истории
+let LV=LEVELS.village,WAVES=LV.waves,WTIP=LV.tips,seq=null,seqI=0,seqEnd=null; // текущий уровень и очередь запуска: сцены и бои по порядку
 
 let S;
 function reset(){
@@ -571,7 +602,7 @@ function end(win,wiped){
   S.over=true;
   $('overT').textContent=win?'Бункер выстоял':wiped?'Отряд выбыл':'Дверь пробита';S.aim=null;
   $('overP').textContent=win?LV.name+': все волны отбиты. Прочность двери: '+Math.round(S.door)+'.':'Ты продержался до волны '+S.wave+'.';
-  $('cont').hidden=!(win&&storyI>=0);
+  $('cont').hidden=!(win&&seq);
   $('retry').hidden=win||!S.cp;if(!win)$('retry').textContent='Повторить волну '+S.wave;
   $('overS').textContent='Очки: '+S.score;S.sent=false;S.win=win;
   $('nameForm').hidden=S.cheat;$('send').disabled=false;
@@ -917,13 +948,22 @@ function start(d){reset();
   fit();requestAnimationFrame(frame)}
 // ===== меню локаций и плеер сцен =====
 function startLevel(id){LV=LEVELS[id];WAVES=LV.waves;WTIP=LV.tips;$('sWaveN').textContent=WAVES.length;reset();last={};ui();say(LV.name+(LV.note?' ('+LV.note+')':''))}
-function openMenu(){S.paused=true;S.aim=null;$('mback').hidden=!(S.wave>0||S.active)||S.over;
-  [...$('mlist').children].forEach((b,i)=>b.classList.toggle('cur',i===storyI));$('menu').hidden=false;ui()}
+let mview='world',mloc=null;
+function drawMap(){const w=$('mworld'),lc=$('mloc'),ls=$('mlist');w.hidden=mview!=='world';lc.hidden=mview!=='loc';ls.hidden=mview!=='list';
+  $('mtitle').textContent=mview==='loc'?mloc.name:mview==='list'?'Оглавление':'БУНКЕР 17';$('mup').hidden=mview==='world';$('mtoc').hidden=mview!=='world';
+  const pin=(box,o,fn)=>{const b=document.createElement('button');b.type='button';b.className='pin'+(o.locked?' lock':'');b.style.left=o.x+'%';b.style.top=o.y+'%';
+    b.innerHTML='<i></i><b>'+o.name+'</b>'+(o.note||o.locked?'<small>'+(o.note||o.locked)+'</small>':'');if(o.locked)b.disabled=true;else b.onclick=fn;box.appendChild(b)};
+  if(mview==='world'){w.innerHTML='<svg viewBox="0 0 100 100" preserveAspectRatio="none"><polyline points="'+WORLD.filter(l=>!l.locked).map(l=>l.x+','+l.y).join(' ')+'"/><polyline class="far" points="'+WORLD.slice(-2).map(l=>l.x+','+l.y).join(' ')+'"/></svg>';
+    for(const l of WORLD)pin(w,l,()=>{mview='loc';mloc=l;drawMap()})}
+  if(mview==='loc'){lc.innerHTML='<span class="ph">карта локации - заглушка</span>';
+    for(const pl of mloc.places)pin(lc,pl,()=>runSeq(pl.run,()=>{mview='loc';openMenu()}))}}
+function openMenu(){S.paused=true;S.aim=null;$('mback').hidden=!(S.wave>0||S.active)||S.over;drawMap();$('menu').hidden=false;ui()}
 function closeMenu(){$('menu').hidden=true;S.paused=false;ui()}
-function play(i){storyI=i;const it=STORY[i];$('over').hidden=true;
-  if(!it){storyI=-1;openMenu();return}
+function runSeq(items,end){seq=items;seqEnd=end;seqStep(0)}
+function seqStep(i){seqI=i;const it=seq&&seq[i];$('over').hidden=true;
+  if(!it){const e=seqEnd;seq=null;(e||openMenu)();return}
   $('menu').hidden=true;
-  if(it.scene)showScene(it.scene,()=>play(i+1));else{$('scene').hidden=true;startLevel(it.level)}}
+  if(it.scene)showScene(it.scene,()=>seqStep(i+1));else{$('scene').hidden=true;startLevel(it.level)}}
 let sc=null;
 function showScene(n,done){sc={f:SCENES[n].frames,i:-1,k:-1,done,tm:0,ty:0};S.paused=true;$('scene').hidden=false;sceneNext()}
 function sceneNext(){clearTimeout(sc.tm);clearInterval(sc.ty);
@@ -942,8 +982,9 @@ $('scene').onclick=e=>{if(!sc)return;if(e.target.id==='scSkip'){sc.i=sc.f.length
   if(!sc.full){clearInterval(sc.ty);$('scLine').textContent=sc.cur||'';sc.full=true}else sceneNext()};
 STORY.forEach((it,i)=>{const b=document.createElement('button');b.type='button';b.className=it.scene?'sc':'lv';
   b.innerHTML=it.scene?SCENES[it.scene].name+'<small>'+SCENES[it.scene].frames.length+' кадр., '+SCENES[it.scene].frames.reduce((n,f)=>n+f.l.length,0)+' реплик, картинки - заглушки</small>':LEVELS[it.level].name+'<small>'+LEVELS[it.level].waves.length+' волн · '+LEVELS[it.level].note+'</small>';
-  b.onclick=()=>play(i);$('mlist').appendChild(b)});
-$('mback').onclick=closeMenu;$('toMenu').onclick=openMenu;$('cont').onclick=()=>play(storyI+1);
+  b.onclick=()=>runSeq(STORY.slice(i),()=>{mview='list';openMenu()});$('mlist').appendChild(b)});
+$('mback').onclick=closeMenu;$('toMenu').onclick=openMenu;$('cont').onclick=()=>seqStep(seqI+1);
+$('mup').onclick=()=>{mview='world';drawMap()};$('mtoc').onclick=()=>{mview='list';drawMap()};
 {const mb=document.createElement('button');mb.id='mMenu';mb.type='button';mb.textContent=M?'≡':'Меню';mb.setAttribute('aria-label','Меню локаций и сцен');mb.onclick=openMenu;
   if(M)document.querySelector('header .tools').prepend(mb);else $('bar').insertBefore(mb,$('pause'))}
 {const hn=$('hname');let nm='';try{nm=localStorage.getItem('b17name')||''}catch(e){}
