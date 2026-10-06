@@ -59,6 +59,10 @@ button:disabled{opacity:.45;cursor:default}
 .pin b{font:400 14px var(--display);letter-spacing:.04em;background:rgba(13,11,8,.8);padding:1px 6px}
 .pin small{font-size:10px;color:var(--dim);background:rgba(13,11,8,.8);padding:0 5px}
 .pin.lock{opacity:.5}.pin.lock i{border-color:var(--line);background:#17130e}
+#mshop{display:flex;flex-direction:column;gap:8px}#mshop[hidden]{display:none}
+#mshop .scr{margin:0;font-size:15px}#mshop .scr b{color:var(--amber);font:400 20px var(--display)}#mshop .nt{margin:4px 0 0;font-size:11px;color:var(--dim)}
+#mshop button{width:100%;min-height:60px;display:flex;flex-direction:row;align-items:center;gap:10px;text-align:left;padding:6px 10px}
+#mshop button img{width:44px;height:auto;max-height:44px;flex:none;image-rendering:pixelated}#mshop button span{flex:1;min-width:0}#mshop button small{display:block;color:var(--dim);font-size:11px}#mshop button b{color:var(--amber);font:400 16px var(--display)}
 #mlist{display:flex;flex-direction:column;gap:6px;margin-top:6px}#mlist[hidden]{display:none}
 #mlist button{width:100%;min-height:48px;text-align:left;padding:6px 12px;display:block}
 #mlist button small{display:block;color:var(--dim);font-size:11px}
@@ -143,7 +147,7 @@ button.go{background:var(--rust);border-color:var(--rust);font-family:var(--disp
 .m #squad .ab .row img{width:48px;height:48px}
 .m #squad .ab[data-cd]:not([data-cd=""])::after{content:attr(data-cd);position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(20,17,13,.72);font:400 20px var(--display);color:var(--fg)}
 #next.big{display:flex;align-items:center;justify-content:center;text-align:center;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;width:300px;height:67px;min-height:0;padding:0 0 2px;border:0;background-color:transparent;background-size:100% 100%;background-repeat:no-repeat;image-rendering:pixelated;color:#2a1c08;font-family:var(--display);font-size:19px;letter-spacing:.06em;text-transform:uppercase}#next.big:active{padding:3px 0 0}
-#mShop{position:absolute;top:4px;right:24px;z-index:3;width:56px;height:56px;min-height:56px;padding:0;border:0;background:none}#mShop img{width:56px;height:56px;display:block;image-rendering:pixelated}#mShop.on{outline:2px solid var(--amber)}
+#mShop{position:absolute;top:4px;right:24px;z-index:3;width:56px;height:56px;min-height:56px;padding:0;border:0;background:none}#mShop{background:#17130e;border:2px solid var(--amber)}#mShop img{width:48px;height:auto;display:block;margin:auto;image-rendering:pixelated}#mShop b{position:absolute;right:2px;bottom:0;font:400 14px var(--display);color:var(--amber)}#mShop.on{outline:2px solid var(--amber)}
 .m #bar{position:fixed;left:16px;right:16px;bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:5;display:block}
 .m #bar .sp{display:none}
 .m #build,.m #sel{background:var(--bg);border:2px solid var(--amber);padding:8px;flex-direction:column;flex-wrap:nowrap}
@@ -185,6 +189,7 @@ button.go{background:var(--rust);border-color:var(--rust);font-family:var(--disp
   <label class="mname">Позывной<input id="hname" maxlength="16" autocomplete="off" placeholder="Семнадцатый"></label>
   <div id="mworld" class="map"></div>
   <div id="mloc" class="map" hidden></div>
+  <div id="mshop" hidden></div>
   <div id="mlist" hidden></div>
   <button id="mback" type="button" hidden>Вернуться в бой</button>
 </div></div>
@@ -341,8 +346,8 @@ const WAVES_PROLOG=[ // черновик: падение стены по сце�
 ];
 const LEVELS={
   prolog:{name:'Пролог. Бункер 17',waves:WAVES_PROLOG,tips:[],heroW:4,note:'черновик: бой с винтовкой, сценарного падения стены пока нет'},
-  village:{name:'Уровень 1. Поселок',waves:WAVES_VILLAGE,tips:WTIP_VILLAGE,heroW:0,note:'текущие 10 волн, насекомые появятся позже'},
-  dump:{name:'Уровень 2. Свалка',waves:WAVES_VILLAGE,tips:[],heroW:3,note:'заглушка: волны Поселка, старт с пистолетом'}
+  village:{name:'Уровень 1. Поселок',waves:WAVES_VILLAGE,tips:WTIP_VILLAGE,heroW:0,earn:1,note:'текущие 10 волн, насекомые появятся позже'},
+  dump:{name:'Уровень 2. Свалка',waves:WAVES_VILLAGE,tips:[],heroW:3,camp:1,note:'заглушка: волны Поселка, старт с пистолетом'}
 };
 // кадр: id и pic - что на картинке (пока заглушка); l - реплики по порядку: [кто, текст]. Кто: имя, 'H' - герой (подставляется позывной), '' - подпись по центру кадра, с '~' в начале - голос из рации. hold - кадр без текста сам листается через столько секунд
 const SCENES={
@@ -386,13 +391,18 @@ const WORLD=[
     {name:'Частокол',note:'бой, 10 волн',x:50,y:74,run:[{level:'village'}]},
     {name:'Костер',note:'сцена 4',x:74,y:38,run:[{scene:4}]}]},
   {id:'dump',name:'Свалка',x:68,y:80,places:[
-    {name:'Лавка Виктора',note:'сцена 5',x:26,y:30,run:[{scene:5}]},
+    {name:'Лавка Виктора',note:'магазин',x:26,y:30,shop:1},
+    {name:'Разговор с Виктором',note:'сцена 5',x:30,y:14,run:[{scene:5}]},
     {name:'Бар',note:'слухи, позже задания',x:74,y:34,run:[{scene:7}]},
     {name:'Ворота',note:'бой, 10 волн',x:50,y:76,run:[{level:'dump'}]},
     {name:'Лавка ночью',note:'сцена 6',x:24,y:56,run:[{scene:6}]}]},
   {id:'north',name:'Север',x:72,y:8,locked:'в продолжении'}
 ];
 const STORY=[{scene:1},{level:'prolog'},{scene:2},{scene:3},{level:'village'},{scene:4},{scene:5},{level:'dump'},{scene:6}];
+// запас между боями: скрап, оружие героя, ловушки, нанятые. Тратится в лавке Виктора на карте Свалки
+let CAMP={scrap:0,w:0,traps:0,hire:{}};
+try{Object.assign(CAMP,JSON.parse(localStorage.getItem('b17camp')||'{}'))}catch(e){}
+const saveCamp=()=>{try{localStorage.setItem('b17camp',JSON.stringify(CAMP))}catch(e){}};
 let LV=LEVELS.village,WAVES=LV.waves,WTIP=LV.tips,seq=null,seqI=0,seqEnd=null; // текущий уровень и очередь запуска: сцены и бои по порядку
 
 let S;
@@ -407,7 +417,7 @@ const nxt=u=>{const ws=UNITS[u.id].weapons;for(let i=u.w+1;i<ws.length;i++)if(!w
 function startWave(){
   if(S.over&&!S.win&&S.cp)retry(); // после проигрыша кнопка волны = повторить волну
   if(S.active||S.over||S.wave>=WAVES.length)return;
-  S.cp={score:S.score,scrap:S.scrap,door:S.door,wave:S.wave,traps:S.traps.map(t=>({...t})),units:Object.fromEntries(IDS.map(id=>[id,S.units[id].w]))};
+  S.cp={trapInv:S.trapInv,score:S.score,scrap:S.scrap,door:S.door,wave:S.wave,traps:S.traps.map(t=>({...t})),units:Object.fromEntries(IDS.map(id=>[id,S.units[id].w]))};
   S.wave++;S.active=true;S.t=0;S.queue=[];S.banner=null;let t=.5;
   if(WTIP[S.wave-1])say(WTIP[S.wave-1]);
   for(const [type,n,gap,o] of WAVES[S.wave-1]){for(let i=0;i<n;i++){S.queue.push({t,type,o});t+=gap}t+=1.5}
@@ -602,6 +612,7 @@ function end(win,wiped){
   S.over=true;
   $('overT').textContent=win?'Бункер выстоял':wiped?'Отряд выбыл':'Дверь пробита';S.aim=null;
   $('overP').textContent=win?LV.name+': все волны отбиты. Прочность двери: '+Math.round(S.door)+'.':'Ты продержался до волны '+S.wave+'.';
+  if(win&&(LV.earn||LV.camp)&&!S.cheat){CAMP.scrap=S.scrap;CAMP.w=Math.max(CAMP.w||0,S.units.hero.w);CAMP.traps=S.trapInv||0;saveCamp()}
   $('cont').hidden=!(win&&seq);
   $('retry').hidden=win||!S.cp;if(!win)$('retry').textContent='Повторить волну '+S.wave;
   $('overS').textContent='Очки: '+S.score;S.sent=false;S.win=win;
@@ -637,7 +648,7 @@ $('nameForm').addEventListener('submit',async ev=>{ev.preventDefault();
   S.sent=true;$('nameForm').hidden=true;await showTop(rec);$('lbNote').textContent=note});
 $('pname').addEventListener('keydown',e=>e.stopPropagation());
 function retry(){const c=S.cp;if(!c)return;
-  S.scrap=c.scrap;S.door=c.door;S.wave=c.wave;S.traps=c.traps.map(t=>({...t}));S.score=Math.max(0,(c.score||0)-BAL.retryCost); // повтор волны стоит 200 очков
+  S.trapInv=c.trapInv||0;S.scrap=c.scrap;S.door=c.door;S.wave=c.wave;S.traps=c.traps.map(t=>({...t}));S.score=Math.max(0,(c.score||0)-BAL.retryCost); // повтор волны стоит 200 очков
   for(const id of IDS){const u=S.units[id];u.w=c.units[id];u.cd=0;u.scd=0;u.x=UNITS[id].x;u.y=UNITS[id].y;u.field=false;u.goal=null;u.out=false;u.hp=null;u.sup=0;u.at=0;u.jmp=null;u.focus=null;u.wx=null}
   S.later=[];
   S.active=false;S.over=false;S.aim=null;S.queue=[];S.enemies=[];S.fx=[];S.focus=null;S.sel=null;S.paused=false;
@@ -794,8 +805,8 @@ cv.addEventListener('pointerdown',e=>{
   if(S.shop){S.shop=false;ui()}
   if(S.pick){S.sel=null;
     if(!canBuild(c,r))say(trapAt(c,r)?'Клетка занята.':'Ловушки ставятся только на поле перед стеной.');
-    else if(S.scrap<TRAP)say('Не хватает скрапа: нужно '+TRAP+'.');
-    else{S.scrap-=TRAP;S.traps.push({c,r,dur:DUR})}
+    else if(!(S.trapInv>0)){say('Ловушек нет. Они продаются в лавке Виктора.');S.pick=false;ui()}
+    else{S.trapInv--;S.traps.push({c,r,dur:DUR});if(!S.trapInv)S.pick=false;ui()}
     return}
   let near=null,nd=1e9;
   for(const en of S.enemies){const d=Math.hypot(en.x-p[0],en.y-p[1]);if(d<EN[en.type].r+26&&d<nd){near=en;nd=d}}
@@ -834,7 +845,7 @@ for(const id of IDS){const b=document.createElement('button');b.className='sq';s
   b.onclick=()=>{if(S.units[id].w<0)return;if(S.selU===id)S.units[id].wx=null;S.selU=id;S.pick=false;S.shop=false;ui()}}
 const tb=document.createElement('button');$('build').appendChild(tb);
 tb.innerHTML='<span class="row"><img alt="" style="height:auto" src="'+ART.trap+'"><span>Ловушка<small>замедляет, ранит, изнашивается</small></span><span class="nx"><b>'+TRAP+'</b></span></span>';
-tb.onclick=()=>{S.pick=!S.pick;S.sel=null;if(M)S.shop=false;ui()};
+tb.onclick=()=>{if(!(S.trapInv>0)&&!S.pick){say('Ловушек нет. Они продаются в лавке Виктора.');return}S.pick=!S.pick;S.sel=null;ui()};
 $('sell').onclick=()=>{if(!S.sel)return;S.scrap+=sellTrap(S.sel);S.traps=S.traps.filter(x=>x!==S.sel);S.sel=null;ui()};
 $('desel').onclick=()=>{S.sel=null;ui()};
 $('next').onclick=startWave;
@@ -883,7 +894,7 @@ if(M){
   const tools=document.createElement('span');tools.className='tools';tools.append(sp,$('pause'),gear);hd.appendChild(tools);
   {const nb=$('next');$('stage').appendChild(nb);nb.classList.add('big'); // старт волны - большая кнопка по центру поля, видна только между волнами
     const st=document.createElement('style');st.textContent='#next.big{background-image:url('+ART.shopbtnU+')}#next.big:active{background-image:url('+ART.shopbtnD+')}';document.head.appendChild(st)}
-  const shop=mk('mShop','');shop.innerHTML='<img alt="" src="'+ART.shopbtn+'">';shop.setAttribute('aria-label','Магазин');shop.onclick=()=>{S.shop=!S.shop;S.pick=false;ui()};$('stage').appendChild(shop);
+  const shop=mk('mShop','');shop.innerHTML='<img alt="" src="'+ART.trap+'"><b></b>';shop.setAttribute('aria-label','Поставить ловушку');shop.onclick=()=>tb.onclick();$('stage').appendChild(shop);
   for(const id of IDS){const c=document.createElement('div');c.className='col';ab[id].classList.add('ab');c.append(sq[id],ab[id]);$('squad').appendChild(c)} // способность - под портретом своего бойца
 }
 let last={};
@@ -901,8 +912,9 @@ function ui(){
     b.innerHTML='<span class="row">'+left+right+'</span>';
     ab[id].hidden=u.w<0}
   tb.classList.toggle('on',S.pick);
-  if(S.active)S.shop=false;$('build').hidden=!!S.sel||(M?!S.shop:S.active);$('sel').hidden=!S.sel;
-  if(M){$('mSpeed').textContent='x'+S.speed;$('mSpeed').classList.toggle('on',S.speed>1);$('mShop').classList.toggle('on',!!S.shop);$('mShop').hidden=S.active||S.over}
+  for(const id of IDS)buy[id].hidden=true; // покупки переехали в лавку Виктора
+  tb.querySelector('b').textContent='x'+(S.trapInv||0);$('build').hidden=!!S.sel||M;$('sel').hidden=!S.sel;
+  if(M){$('mSpeed').textContent='x'+S.speed;$('mSpeed').classList.toggle('on',S.speed>1);$('mShop').classList.toggle('on',!!S.pick);$('mShop').hidden=!(S.trapInv>0||S.pick)||S.over;$('mShop').querySelector('b').textContent=S.trapInv||0}
   if(S.sel){$('sell').innerHTML='Продать ловушку · +'+sellTrap(S.sel)+'<small>осталось '+Math.round(100*S.sel.dur/DUR)+'% прочности</small>';say('Ловушка: враги в этой клетке идут вчетверо медленнее и получают '+WIRE+' урона в секунду. Проволока изнашивается, пока в ней враги.')}
   else if(S.pick)say('Ловушка: ткни в клетку поля. Повторное нажатие на кнопку снимает выбор.');
   else if(!M)say('Тап по врагу - метка цели для отряда и способностей. Крупные кнопки - способности, ниже - оружие и найм.');
@@ -947,16 +959,29 @@ function start(d){reset();
     for(const id of IDS)if(d.units[id]!=null)S.units[id].w=d.units[id];ui()}
   fit();requestAnimationFrame(frame)}
 // ===== меню локаций и плеер сцен =====
-function startLevel(id){LV=LEVELS[id];WAVES=LV.waves;WTIP=LV.tips;$('sWaveN').textContent=WAVES.length;reset();last={};ui();say(LV.name+(LV.note?' ('+LV.note+')':''))}
+function startLevel(id){LV=LEVELS[id];WAVES=LV.waves;WTIP=LV.tips;$('sWaveN').textContent=WAVES.length;reset();
+  S.scrap=0;S.trapInv=0;
+  if(LV.camp){S.scrap=CAMP.scrap;S.trapInv=CAMP.traps;S.units.hero.w=Math.max(LV.heroW||0,CAMP.w||0);for(const id of IDS)if(CAMP.hire[id])S.units[id].w=0} // бой на Свалке берет запас из лавки
+last={};ui();say(LV.name+(LV.note?' ('+LV.note+')':''))}
 let mview='world',mloc=null;
-function drawMap(){const w=$('mworld'),lc=$('mloc'),ls=$('mlist');w.hidden=mview!=='world';lc.hidden=mview!=='loc';ls.hidden=mview!=='list';
-  $('mtitle').textContent=mview==='loc'?mloc.name:mview==='list'?'Оглавление':'БУНКЕР 17';$('mup').hidden=mview==='world';$('mtoc').hidden=mview!=='world';
+function drawMap(){const w=$('mworld'),lc=$('mloc'),ls=$('mlist');w.hidden=mview!=='world';lc.hidden=mview!=='loc';$('mshop').hidden=mview!=='shop';ls.hidden=mview!=='list';
+  $('mtitle').textContent=mview==='shop'?'Лавка Виктора':mview==='loc'?mloc.name:mview==='list'?'Оглавление':'БУНКЕР 17';$('mup').hidden=mview==='world';$('mtoc').hidden=mview!=='world';
   const pin=(box,o,fn)=>{const b=document.createElement('button');b.type='button';b.className='pin'+(o.locked?' lock':'');b.style.left=o.x+'%';b.style.top=o.y+'%';
     b.innerHTML='<i></i><b>'+o.name+'</b>'+(o.note||o.locked?'<small>'+(o.note||o.locked)+'</small>':'');if(o.locked)b.disabled=true;else b.onclick=fn;box.appendChild(b)};
   if(mview==='world'){w.innerHTML='<svg viewBox="0 0 100 100" preserveAspectRatio="none"><polyline points="'+WORLD.filter(l=>!l.locked).map(l=>l.x+','+l.y).join(' ')+'"/><polyline class="far" points="'+WORLD.slice(-2).map(l=>l.x+','+l.y).join(' ')+'"/></svg>';
     for(const l of WORLD)pin(w,l,()=>{mview='loc';mloc=l;drawMap()})}
   if(mview==='loc'){lc.innerHTML='<span class="ph">карта локации - заглушка</span>';
-    for(const pl of mloc.places)pin(lc,pl,()=>runSeq(pl.run,()=>{mview='loc';openMenu()}))}}
+    for(const pl of mloc.places)pin(lc,pl,pl.shop?()=>{mview='shop';drawMap()}:()=>runSeq(pl.run,()=>{mview='loc';openMenu()}))}
+  if(mview==='shop'){const sh=$('mshop'),hw=UNITS.hero.weapons,it=[];
+    if((CAMP.w||0)<4)it.push({n:hw[4].name,d:'урон '+hw[4].dmg+', радиус '+(hw[4].r/C).toFixed(1)+', прицельный выстрел на все поле',c:hw[4].cost,img:ART.shop4,f:()=>{CAMP.w=4}});
+    else it.push({n:hw[4].name,d:'уже куплена',c:0,img:ART.shop4,own:1});
+    it.push({n:'Ловушка',d:'колючка: замедляет, ранит, изнашивается. В запасе: '+CAMP.traps,c:TRAP,img:ART.trap,f:()=>{CAMP.traps++}});
+    for(const id of ['tar','bor'])it.push(CAMP.hire[id]?{n:UNITS[id].name,d:'в отряде',c:0,img:ART['pt_'+id],own:1}:{n:'Нанять: '+UNITS[id].name,d:UNITS[id].weapons[0].name,c:UNITS[id].hire,img:ART['pt_'+id],f:()=>{CAMP.hire[id]=1}});
+    sh.innerHTML='<p class="scr">Скрап: <b>'+CAMP.scrap+'</b></p>';
+    for(const x of it){const b=document.createElement('button');b.type='button';b.disabled=!!x.own||CAMP.scrap<x.c;
+      b.innerHTML='<img alt="" src="'+x.img+'"><span>'+x.n+'<small>'+x.d+'</small></span>'+(x.own?'':'<b>'+x.c+'</b>');
+      b.onclick=()=>{CAMP.scrap-=x.c;x.f();saveCamp();drawMap()};sh.appendChild(b)}
+    const nt=document.createElement('p');nt.className='nt';nt.textContent='Скрап приходит из отбитых боев в Поселке и на Свалке. Покупки действуют в бою у ворот Свалки.';sh.appendChild(nt)}}
 function openMenu(){S.paused=true;S.aim=null;$('mback').hidden=!(S.wave>0||S.active)||S.over;drawMap();$('menu').hidden=false;ui()}
 function closeMenu(){$('menu').hidden=true;S.paused=false;ui()}
 function runSeq(items,end){seq=items;seqEnd=end;seqStep(0)}
@@ -984,7 +1009,7 @@ STORY.forEach((it,i)=>{const b=document.createElement('button');b.type='button';
   b.innerHTML=it.scene?SCENES[it.scene].name+'<small>'+SCENES[it.scene].frames.length+' кадр., '+SCENES[it.scene].frames.reduce((n,f)=>n+f.l.length,0)+' реплик, картинки - заглушки</small>':LEVELS[it.level].name+'<small>'+LEVELS[it.level].waves.length+' волн · '+LEVELS[it.level].note+'</small>';
   b.onclick=()=>runSeq(STORY.slice(i),()=>{mview='list';openMenu()});$('mlist').appendChild(b)});
 $('mback').onclick=closeMenu;$('toMenu').onclick=openMenu;$('cont').onclick=()=>seqStep(seqI+1);
-$('mup').onclick=()=>{mview='world';drawMap()};$('mtoc').onclick=()=>{mview='list';drawMap()};
+$('mup').onclick=()=>{mview=mview==='shop'?'loc':'world';drawMap()};$('mtoc').onclick=()=>{mview='list';drawMap()};
 {const mb=document.createElement('button');mb.id='mMenu';mb.type='button';mb.textContent=M?'≡':'Меню';mb.setAttribute('aria-label','Меню локаций и сцен');mb.onclick=openMenu;
   if(M)document.querySelector('header .tools').prepend(mb);else $('bar').insertBefore(mb,$('pause'))}
 {const hn=$('hname');let nm='';try{nm=localStorage.getItem('b17name')||''}catch(e){}

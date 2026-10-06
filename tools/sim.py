@@ -2,9 +2,10 @@
 """Симулятор баланса Бункера 17: гоняет игру без отрисовки в headless-браузере, вместо игрока - боты.
 Запуск: python3 tools/sim.py [забегов на бота=150] [путь к html]
 Боты (играют одним Растом, напарников не нанимают):
-  novice - прицел жмет с задержкой, всегда в корпус ближайшему, покупает только винтовку
-  mid    - выбирает зону по типу врага и цель по угрозе, покупает винтовку, потом ловушки
-  pro    - как mid, но без задержки, взрывает подрывника в толпе, ловушки ставит на путь громил
+  novice - прицел жмет с задержкой, всегда в корпус ближайшему
+  mid    - выбирает зону по типу врага
+  pro    - как mid, но без задержки, цель по угрозе, взрывает подрывника в толпе
+Покупок нет: в Поселке магазина нет (флаг SHOP в коде бота).
 Цель кривой: novice проигрывает около 5-й волны, mid доходит до 8-й, pro проходит 10."""
 import asyncio,sys,json,os
 from playwright.async_api import async_playwright
@@ -29,8 +30,9 @@ const thr=e=>(e.type==='gunner'&&e.y>=e.gy&&!(e.disarm>1)&&G.S.units.hero.hp<85?
 function run(bot){reset();const S=G.S;S.speed=0;const B=BOTS[bot],h=S.units.hero;let ready=0,stat={wave:0,win:false,door:[],hp:[]};
   while(!S.over){
     // между волнами: покупки
-    const ni=nxt(h),nw=UNITS.hero.weapons[ni];if(nw&&S.scrap>=nw.cost&&bot!=='lazy'){S.scrap-=nw.cost;h.w=ni;h.scd=0}
-    let tr=0;while(B.traps&&S.traps.length<B.traps+Math.floor(S.wave/3)&&S.scrap>=TRAP+(nxt(h)>=0?60:0)&&tr++<3){
+    const SHOP=false; // в Поселке магазина нет: покупки только в лавке на Свалке
+    const ni=nxt(h),nw=UNITS.hero.weapons[ni];if(SHOP&&nw&&S.scrap>=nw.cost&&bot!=='lazy'){S.scrap-=nw.cost;h.w=ni;h.scd=0}
+    let tr=0;while(SHOP&&B.traps&&S.traps.length<B.traps+Math.floor(S.wave/3)&&S.scrap>=TRAP+(nxt(h)>=0?60:0)&&tr++<3){
       const c=Math.floor(Math.random()*8),r=bot==='pro'?6+Math.floor(Math.random()*2):3+Math.floor(Math.random()*5);if(canBuild(c,r)){S.scrap-=TRAP;S.traps.push({c,r,dur:DUR})}}
     startWave();let t=0;
     while(S.active&&!S.over&&t<600){step(DT);t+=DT;
