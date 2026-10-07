@@ -46,6 +46,10 @@ button:disabled{opacity:.45;cursor:default}
 .spot.on::before{width:12px;height:12px;margin:-6px;background:#fff3d6;box-shadow:0 0 0 2px rgba(34,28,20,.8),0 0 14px 5px rgba(242,169,59,1)}
 .spot.on::after{animation:none;width:30px;height:30px;margin:-17px;border:2px solid #ffd98a;box-shadow:0 0 0 1px rgba(34,28,20,.7),inset 0 0 0 1px rgba(34,28,20,.7)} /* выбранная точка: неподвижное четкое кольцо */
 @keyframes spotping{0%{transform:scale(1);opacity:.45}100%{transform:scale(1.9);opacity:0}}
+.map:not(.dark) .spot::after{border:2px solid rgba(58,34,12,.95);animation-name:spotpingL} /* светлая карта: кольцо темное, иначе теряется на песке */
+.map:not(.dark) .spot::before{box-shadow:0 0 0 2px rgba(34,28,20,.9),0 0 10px 4px rgba(200,104,44,.95)}
+.map:not(.dark) .spot.on::after{border-color:#3a220c;box-shadow:0 0 0 1px rgba(255,217,138,.9),inset 0 0 0 1px rgba(255,217,138,.9)}
+@keyframes spotpingL{0%{transform:scale(1);opacity:.8}100%{transform:scale(1.9);opacity:0}}
 @media (prefers-reduced-motion:reduce){.spot::after{animation:none}}
 #mtip{display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:#221c14;border:2px solid var(--line);padding:8px 10px}#mtip[hidden]{display:none}
 #mtip>b{flex:1 1 100%;font:400 15px var(--display);letter-spacing:.04em;color:var(--amber)}
