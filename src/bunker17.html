@@ -42,10 +42,11 @@ button:disabled{opacity:.45;cursor:default}
 .map{background-size:cover;background-position:center}
 .spot{position:absolute;transform:translate(-50%,-50%);width:64px;height:64px;min-height:0;padding:0;background:none;border:0;border-radius:50%} /* невидимая зона нажатия; видна только метка */
 .spot::before{content:'';position:absolute;left:50%;top:50%;width:10px;height:10px;margin:-5px;border-radius:50%;background:#ffd98a;box-shadow:0 0 0 2px rgba(34,28,20,.75),0 0 10px 3px rgba(242,169,59,.9)}
-.spot::after{content:'';position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-10px;border-radius:50%;border:1px solid rgba(255,217,138,.35)} /* бледное кольцо; пульсирует только у выбранной точки */
-.spot.on::after{border-color:rgba(255,217,138,.75);animation:spotping 1.8s ease-out infinite}
-@keyframes spotping{0%{transform:scale(1);opacity:.8}100%{transform:scale(2);opacity:0}}
-@media (prefers-reduced-motion:reduce){.spot.on::after{animation:none;transform:scale(1.5)}}
+.spot::after{content:'';position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-10px;border-radius:50%;border:1px solid rgba(255,217,138,.5);animation:spotping 2.8s ease-out infinite} /* слабая пульсация у всех точек */
+.spot.on::before{width:12px;height:12px;margin:-6px;background:#fff3d6;box-shadow:0 0 0 2px rgba(34,28,20,.8),0 0 14px 5px rgba(242,169,59,1)}
+.spot.on::after{animation:none;width:30px;height:30px;margin:-17px;border:2px solid #ffd98a;box-shadow:0 0 0 1px rgba(34,28,20,.7),inset 0 0 0 1px rgba(34,28,20,.7)} /* выбранная точка: неподвижное четкое кольцо */
+@keyframes spotping{0%{transform:scale(1);opacity:.45}100%{transform:scale(1.9);opacity:0}}
+@media (prefers-reduced-motion:reduce){.spot::after{animation:none}}
 #mtip{display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:#221c14;border:2px solid var(--line);padding:8px 10px}#mtip[hidden]{display:none}
 #mtip>b{flex:1 1 100%;font:400 15px var(--display);letter-spacing:.04em;color:var(--amber)}
 #mtip button{flex:1 1 0;min-height:44px;padding:4px 8px}#mtip button small{display:block;font-size:11px;letter-spacing:0;color:#ffe9d2}
