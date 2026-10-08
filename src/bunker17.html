@@ -51,6 +51,9 @@ button:disabled{opacity:.45;cursor:default}
 .map:not(.dark) .spot.on::after{border-color:#3a220c;box-shadow:0 0 0 1px rgba(255,217,138,.9),inset 0 0 0 1px rgba(255,217,138,.9)}
 @keyframes spotpingL{0%{transform:scale(1);opacity:.8}100%{transform:scale(1.9);opacity:0}}
 .map .spot.lock::before{background:#8a7a62;box-shadow:0 0 0 2px rgba(34,28,20,.8)}.map .spot.lock::after{animation:none;border:1px dashed rgba(58,34,12,.8)} /* закрытое место: серая точка без пульсации */
+#mworld .wlab{position:absolute;min-height:0;width:auto;padding:4px 6px;background:none;border:0;white-space:nowrap;font:400 17px var(--display);letter-spacing:.05em;color:#fff;
+  text-shadow:0 0 2px #1a1008,1px 1px 0 #1a1008,-1px -1px 0 #1a1008,1px -1px 0 #1a1008,-1px 1px 0 #1a1008,0 0 8px rgba(26,16,8,.85)}
+#mworld .wlab.on{color:#ffd98a}#mworld .wlab.lock{color:#cfc6b8;opacity:.8}
 #mtip>small{flex:1 1 100%;font-size:12px;color:var(--dim)}
 @media (prefers-reduced-motion:reduce){.spot::after{animation:none}}
 #mtip{display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:#221c14;border:2px solid var(--line);padding:8px 10px}#mtip[hidden]{display:none}
@@ -401,17 +404,17 @@ const SCENES={
 };
 // карта мира: x, y - положение точки в процентах; places - точки внутри локации, run - что запускается по тапу
 const WORLD=[
-  {id:'b17',name:'Бункер 17',x:52,y:22,places:[
+  {id:'b17',name:'Бункер 17',x:52,y:22,lx:57,ly:24,places:[
     {name:'Стена',note:'сцена 1, бой, сцена 2',x:50,y:62,run:[{scene:1},{level:'prolog'},{scene:2}]}]},
-  {id:'village',name:'Поселок',x:27,y:49,img:'pt_map_village',places:[ // img - рисованная карта; ic - значок точки; acts - что можно сделать в этом месте
+  {id:'village',name:'Поселок',x:27,y:49,lx:30,ly:50,img:'pt_map_village',places:[ // img - рисованная карта; ic - значок точки; acts - что можно сделать в этом месте
     {name:'Хижина Тарука',ic:'talk',x:34,y:32,acts:[{t:'Войти',note:'сцена 3',run:[{scene:3}]}]},
     {name:'Костер',ic:'talk',x:74,y:28,acts:[{t:'Подойти',note:'сцена 4',run:[{scene:4}]}]},
     {name:'Ворота',ic:'fight',x:51,y:91,acts:[{t:'В бой',note:'10 волн',run:[{level:'village'}]}]}]},
-  {id:'dump',name:'Свалка',x:65,y:82,img:'pt_map_dump',dark:1,places:[
+  {id:'dump',name:'Свалка',x:65,y:82,lx:76,ly:84,img:'pt_map_dump',dark:1,places:[
     {name:'Мастерская Виктора',ic:'shop',x:19,y:26,acts:[{t:'Магазин',shop:1},{t:'Разговор',note:'сцена 5',run:[{scene:5}]},{t:'Ночью',note:'сцена 6',run:[{scene:6}]}]},
     {name:'Бар',ic:'bar',x:74,y:31,acts:[{t:'Войти',note:'слухи, позже задания',run:[{scene:7}]}]},
     {name:'Ворота',ic:'fight',x:54,y:68,acts:[{t:'В бой',note:'10 волн',run:[{level:'dump'}]}]}]},
-  {id:'north',name:'Север',x:72,y:14,locked:'путь в горы откроется в продолжении'}
+  {id:'north',name:'Север',x:72,y:14,lx:75,ly:15,locked:'путь в горы откроется в продолжении'}
 ];
 const STORY=[{scene:1},{level:'prolog'},{scene:2},{scene:3},{level:'village'},{scene:4},{scene:5},{level:'dump'},{scene:6}];
 // запас между боями: скрап, оружие героя, ловушки, нанятые. Тратится в лавке Виктора на карте Свалки
@@ -993,13 +996,14 @@ function drawMap(){const w=$('mworld'),lc=$('mloc'),ls=$('mlist');w.hidden=mview
   const pin=(box,o,fn)=>{const b=document.createElement('button');b.type='button';b.className='pin'+(o.locked?' lock':'');b.style.left=o.x+'%';b.style.top=o.y+'%';
     b.innerHTML='<i></i><b>'+o.name+'</b>'+(o.note||o.locked?'<small>'+(o.note||o.locked)+'</small>':'');if(o.locked)b.disabled=true;else b.onclick=fn;box.appendChild(b)};
   const spot=(box,pl,acts,go)=>{const b=document.createElement('button');b.type='button';b.className='spot'+(pl.locked?' lock':'');b.style.left=pl.x+'%';b.style.top=pl.y+'%';b.setAttribute('aria-label',pl.name);
-    b.onclick=()=>{[...box.querySelectorAll('.spot')].forEach(x=>x.classList.toggle('on',x===b)); /* подсказка по нажатию: название места и действия */
+    b.onclick=()=>{[...box.querySelectorAll('.spot,.wlab')].forEach(x=>x.classList.toggle('on',x===b)); /* подсказка по нажатию: название места и действия */
       const tp=$('mtip');tp.hidden=false;tp.innerHTML='<b>'+pl.name+'</b>'+(pl.locked?'<small>'+pl.locked+'</small>':'');
       for(const a of acts){const q=document.createElement('button');q.type='button';q.className='go';q.innerHTML=a.t+(a.note?'<small>'+a.note+'</small>':'');q.onclick=()=>go(a);tp.appendChild(q)}};
     box.appendChild(b)};
   $('mtip').hidden=true;
   if(mview==='world'){w.innerHTML='';w.style.backgroundImage='url('+ART.pt_map_world+')';
-    for(const l of WORLD)spot(w,l,l.locked?[]:[{t:'Войти'}],()=>{mview='loc';mloc=l;drawMap()})}
+    for(const l of WORLD){spot(w,l,l.locked?[]:[{t:'Войти'}],()=>{mview='loc';mloc=l;drawMap()});const b=w.lastChild; /* на карте мира вместо точки - белая подпись справа снизу от места */
+      b.className='wlab'+(l.locked?' lock':'');b.textContent=l.name;b.style.left=l.lx+'%';b.style.top=l.ly+'%'}}
   if(mview==='loc'){lc.innerHTML=mloc.img?'':'<span class="ph">карта локации - заглушка</span>';lc.style.backgroundImage=mloc.img?'url('+ART[mloc.img]+')':'';lc.classList.toggle('dark',!!mloc.dark);
     const go=a=>a.shop?(devShop=false,mview='shop',drawMap()):runSeq(a.run,()=>{mview='loc';openMenu()});
     for(const pl of mloc.places){
