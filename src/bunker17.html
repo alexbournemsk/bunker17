@@ -1,5 +1,5 @@
 <title>Бункер 17</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Russo+One&family=Oswald:wght@300;400&family=JetBrains+Mono:wght@400;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Russo+One&family=JetBrains+Mono:wght@300;400;700&display=swap">
 <style>
 /* Layout: one screen - приборная полоса сверху, вертикальное поле боя по центру, пульт снизу. Единый темный вид. */
 :root{
@@ -51,8 +51,8 @@ button:disabled{opacity:.45;cursor:default}
 .map:not(.dark) .spot.on::after{border-color:#3a220c;box-shadow:0 0 0 1px rgba(255,217,138,.9),inset 0 0 0 1px rgba(255,217,138,.9)}
 @keyframes spotpingL{0%{transform:scale(1);opacity:.8}100%{transform:scale(1.9);opacity:0}}
 .map .spot.lock::before{background:#8a7a62;box-shadow:0 0 0 2px rgba(34,28,20,.8)}.map .spot.lock::after{animation:none;border:1px dashed rgba(58,34,12,.8)} /* закрытое место: серая точка без пульсации */
-#mworld .wlab{position:absolute;min-height:0;width:auto;padding:4px 6px;background:none;border:0;white-space:nowrap;font:300 20px Oswald,"Arial Narrow",sans-serif;letter-spacing:.06em;color:#fff;
-  text-shadow:0 0 3px rgba(26,16,8,.95),0 0 6px rgba(26,16,8,.8),0 0 12px rgba(26,16,8,.55)} /* тонкий шрифт, мягкий размытый ореол вместо обводки */
+#mworld .wlab{position:absolute;min-height:0;width:auto;padding:4px 6px;background:none;border:0;white-space:nowrap;font:300 16px var(--mono);letter-spacing:0;color:#fff;
+  text-shadow:0 0 3px rgba(26,16,8,.95),0 0 6px rgba(26,16,8,.8),0 0 12px rgba(26,16,8,.55)} /* моноширинный, как терминал; мягкий размытый ореол вместо обводки */
 #mworld .wlab.on{color:#ffd98a}#mworld .wlab.lock{color:#cfc6b8;opacity:.8}
 #mtip>small{flex:1 1 100%;font-size:12px;color:var(--dim)}
 @media (prefers-reduced-motion:reduce){.spot::after{animation:none}}
