@@ -5,7 +5,7 @@ set -e
 cd /opt/bunker17
 apt-get update -qq
 apt-get install -y -qq nginx git python3 >/dev/null
-mkdir -p /var/lib/bunker17
+mkdir -p /var/lib/bunker17 /var/www/letsencrypt
 chown www-data:www-data /var/lib/bunker17
 cp deploy/nginx.conf /etc/nginx/sites-available/bunker17
 ln -sf /etc/nginx/sites-available/bunker17 /etc/nginx/sites-enabled/bunker17
