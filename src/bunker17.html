@@ -278,8 +278,13 @@ const IMG={};for(const k in ART){if(k.startsWith('shop')||k.startsWith('ab_')||k
 const UA={tar0:{n:4,ax:68},tar1:{n:4,ax:68}}; // лента бойца: 0 стойка, 1 замах, 2 верхняя точка, 3 удар влево; спрайт зеркалится так, чтобы удар шел в сторону цели
 const UW={"hero0": [50, 24, 83], "hero1": [50, 22, 82], "hero3": [68, 39, 84], "hero4": [72, 40, 81], "hero2": [54, 32, 88], "tar0": [88, 35, 96], "tar1": [121, 54, 96], "bor0": [53, 24, 81], "bor1": [94, 42, 82]}; // ходьба бойца: [ширина кадра, x якоря, высота стойки]; лента w_<боец><оружие>, 4 кадра
 const USEWALK=true;
+// рука с динамитом отдельным слоем: из ленты bomberWalk вырезается все правее x=arm[0] и выше y=arm[1] (верх тела во всех кадрах одинаковый); рука качается вокруг локтя piv
+const BWL={};(()=>{const im=IMG.bomberWalk;if(!im)return;const cut=()=>{const W=im.width,H=im.height,mk=()=>{const c=document.createElement('canvas');c.width=W;c.height=H;return c};
+  const b=mk(),r=mk(),bx=b.getContext('2d'),rx=r.getContext('2d');bx.drawImage(im,0,0);const d=bx.getImageData(0,0,W,H),q=rx.createImageData(W,H);
+  for(let y=0;y<=BW.arm[1];y++)for(let x=0;x<W;x++){if(x%BW.fw<BW.arm[0])continue;const i=(y*W+x)*4;for(let j=0;j<4;j++){q.data[i+j]=d.data[i+j];d.data[i+j]=0}}
+  bx.putImageData(d,0,0);rx.putImageData(q,0,0);BWL.body=b;BWL.arm=r};if(im.complete&&im.naturalWidth)cut();else im.addEventListener('load',cut,{once:true})})();
 const GUNF={"ready": [21, 74, 45, -22], "aim": [19, 76, 54, -48], "fire": [18, 76, 53, -59]}; // стрелок на позиции: [x якоря между ступнями, высота, x и y кончика ствола от якоря]; ствол смотрит вправо, в правой половине поля спрайт зеркалится
-const BW={fw:88,fh:140,k:.5,step:18,stand:2}; // покадровая ходьба подрывника: лента bomberWalk 4x(88x140), на поле в масштабе k (44x70); кадр меняется каждые step px пути (при скорости 105 это ~170 мс), stand - кадр 3, стойка
+const BW={fw:88,fh:140,k:.5,step:18,stand:2,arm:[62,56],piv:[63,54],swing:.14,idle:.06}; // покадровая ходьба подрывника: лента bomberWalk 4x(88x140), на поле в масштабе k (44x70); кадр меняется каждые step px пути (при скорости 105 это ~170 мс), stand - кадр 3, стойка
 const FR={raider:9,gunner:9,bomber:9},FRAX={raider:28,gunner:28,bomber:28}; // кадр 0 - стойка, остальные - цикл ходьбы; FRAX - x ступней в кадре // кадры ходьбы в ленте
 const FXN={"hit": 4, "shot": 3, "wave": 7, "waveb": 7, "crit": 4};
 const spr=(s,x,y,size,life)=>S.fx.push({k:'spr',s,x,y,size,life,max:life});
@@ -719,7 +724,11 @@ function draw(){
         const dm=e.bwx==null?0:Math.hypot(e.x-e.bwx,e.y-e.bwy);e.bwx=e.x;e.bwy=e.y;
         if(e.bwd==null)e.bwd=BW.stand*BW.step;e.bwd+=dm;e.bws=dm>.05?0:(e.bws||0)+1;
         const fi=atWall||e.stun>0||e.bws>4?BW.stand:Math.floor(e.bwd/BW.step)%4;
-        g.drawImage(bwi,fi*BW.fw,0,BW.fw,BW.fh,-Math.round(BW.fw*BW.k/2),-Math.round(BW.fh*BW.k),Math.round(BW.fw*BW.k),Math.round(BW.fh*BW.k))}
+        const k=BW.k,dw=Math.round(BW.fw*k),dh=Math.round(BW.fh*k),x0=-Math.round(dw/2);
+        if(BWL.arm){g.drawImage(BWL.body,fi*BW.fw,0,BW.fw,BW.fh,x0,-dh,dw,dh); /* тело, затем рука с динамитом: качается в такт шагу, стоя - слегка по времени */
+          const moving=!(atWall||e.stun>0||e.bws>4),an=moving?Math.sin(e.bwd/(4*BW.step)*Math.PI*2)*BW.swing:Math.sin(performance.now()/380+e.x)*BW.idle;
+          g.save();g.translate(x0+BW.piv[0]*k,-dh+BW.piv[1]*k);g.rotate(an);g.drawImage(BWL.arm,fi*BW.fw,0,BW.fw,BW.fh,-BW.piv[0]*k,-BW.piv[1]*k,dw,dh);g.restore()}
+        else g.drawImage(bwi,fi*BW.fw,0,BW.fw,BW.fh,x0,-dh,dw,dh)}
       else if(nf>1&&USEWALK){const fi=atWall||e.stun>0?0:1+Math.floor(e.y/6)%(nf-1);g.drawImage(ei,fi*fw,0,fw,ei.height,-FRAX[e.type],-ei.height,fw,ei.height)}
       else{if(!atWall){g.rotate(Math.sin(ph)*.07);g.scale(1+Math.sin(ph*2)*.03,1-Math.sin(ph*2)*.03)}
         g.drawImage(ei,nf>1?fw:0,0,fw,ei.height,-Math.round(fw*(nf>1?.62:.5)),-ei.height-(atWall?0:Math.abs(Math.sin(ph))*3),fw,ei.height)}
