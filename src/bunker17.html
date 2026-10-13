@@ -247,8 +247,8 @@ const BAL={
   wallGap:62,             // минимум между бойцами на стене
   crit:[.1,2],            // шанс и множитель крита обычной атаки
   knock:[160,350],        // отброс молота и кувалды
-  gunner:{dmg:7,dmgTar:8,rate:1.8,prep:.6,tarRange:420}, // стрелок: урон бойцу на стене, урон Таруку, интервал, пауза перед первым выстрелом
-  bomber:{dmg:40,r:95,tarDmg:55,tarR:100,door:18},       // подрывник: урон соседям, радиус, урон Таруку, урон двери
+  gunner:{dmg:7,dmgTar:8,rate:1.8,prep:.6,tarRange:420,reach:270}, // стрелок: урон бойцу на стене, урон Таруку, интервал, пауза перед первым выстрелом; reach - бьет только бойцов на стене не дальше этого по горизонтали
+  bomber:{dmg:40,r:95,tarDmg:55,tarR:100,door:18,armsDmg:70,armsR:125,armsStun:.8}, // подрывник: урон соседям, радиус, урон Таруку, урон двери; arms* - подрыв выстрелом по рукам: урон и радиус по своим, оглушение задетых
   aim:{slowmo:.12,        // скорость времени в прицеле
     distPen:15,cap:97,    // штраф шанса на краю радиуса и потолок шанса
     missCd:.5,            // доля перезарядки при промахе
@@ -293,9 +293,9 @@ g.imageSmoothingEnabled=false;
 const EN={
   rat:{hp:22,speed:70,reward:6,atk:2,r:11,col:'#8a6f55'},
   raider:{hp:60,speed:40,reward:12,atk:3,r:14,col:'#b0432a'},
-  brute:{hp:300,speed:26,reward:35,atk:8,r:20,col:'#6f8a3c',armor:.5,zm:{body:.4}}, // armor - множитель урона обычных атак, пока враг не хромает и не оглушен; zm - множители урона прицельного удара по зонам: корпус в броне
+  brute:{hp:300,speed:26,reward:35,atk:8,r:20,col:'#6f8a3c',armor:.5,zm:{body:.4},zb:{legs:10}}, // armor - множитель урона обычных атак, пока враг не хромает и не оглушен; zm - множители урона прицельного удара по зонам: корпус в броне
   boss:{hp:700,speed:20,reward:200,atk:25,r:28,col:'#5a2a5e',armor:.5,zm:{body:.4,legs:.5}},
-  gunner:{hp:70,speed:40,reward:16,atk:3,r:14,col:'#5a7fa8'}, // встает на середине поля и стреляет по защитникам
+  gunner:{hp:70,speed:40,reward:16,atk:3,r:14,col:'#5a7fa8',zb:{arms:12,legs:12}}, // встает на середине поля и стреляет по защитникам
   bomber:{hp:80,speed:105,reward:14,atk:0,r:14,col:'#c8402a'}  // бежит к двери и взрывается
 };
 const GUARD=150,TSPD=130,HOLD=3,AGGRO=150; // БАЛАНС: линия стрелков; у Тарука в поле - радиус охраны, скорость, сколько врагов держит, радиус, с которого враги на него сворачивают
@@ -312,7 +312,7 @@ const WTIP_VILLAGE=['Две матерые крысы. Кнопка камня -
 const ZONES=[['head','ГОЛОВА',75,2.5],['arms','РУКИ',88,.7],['body','КОРПУС',100,1],['legs','НОГИ',90,.7]];
 const zHint=(z,e)=>z==='head'?'крит, оглушение':z==='body'?((EN[e.type].zm||{}).body?'броня, слабо':'надежно'):z==='legs'?'стоп и хромота':e.type==='bomber'?'подрыв на месте':e.type==='gunner'?'не стреляет':'бьет слабее';
 const aimR=u=>wpn(u).sp.r+0;
-function zChance(u,e,z){const sp=wpn(u).sp;return Math.round(Math.max(10,Math.min(BAL.aim.cap,z[2]+(sp.acc||0)-dist(u,e)/sp.r*BAL.aim.distPen)))}
+function zChance(u,e,z){const sp=wpn(u).sp;return Math.round(Math.max(10,Math.min(BAL.aim.cap,z[2]+(sp.acc||0)+((EN[e.type].zb||{})[z[0]]||0)-dist(u,e)/sp.r*BAL.aim.distPen)))} // zb - прибавка шанса по зонам у отдельных врагов
 function aimPanel(e){const w=M?330:270,rh=M?58:44,h=rh*4;return{w,rh,h,x:Math.round(e.x>W/2?Math.max(8,e.x-46-w):Math.min(W-w-8,e.x+46)),y:Math.round(Math.max(110,Math.min(WALL-h-20,e.y-h/2)))}}
 function aimFire(z){const u=S.units.hero,e=S.aim.tg,w=wpn(u),sp=w.sp;S.aim=null;
   if(!e||e.dead)return;u.focus=e;u.ang=Math.atan2(e.y-u.y,e.x-u.x); // цель остается отмеченной и после промаха
@@ -320,7 +320,7 @@ function aimFire(z){const u=S.units.hero,e=S.aim.tg,w=wpn(u),sp=w.sp;S.aim=null;
   S.fx.push({k:'line',x1:bx,y1:by,x2:e.x+(ok?0:26),y2:e.y-(ok?10:60),life:.22,max:.22,strong:1});
   if(!ok){u.scd=sp.cd*BAL.aim.missCd;S.fx.push({k:'txt',x:e.x,y:e.y-40,t:'ПРОМАХ',life:.8,max:.8});return}
   u.scd=sp.cd;const k=z[0];
-  if(k==='arms'&&e.type==='bomber'){S.fx.push({k:'txt',x:e.x,y:e.y-40,t:'ПОДРЫВ',life:.9,max:.9});explode(e);return}
+  if(k==='arms'&&e.type==='bomber'){S.fx.push({k:'txt',x:e.x,y:e.y-40,t:'ПОДРЫВ',life:.9,max:.9});explode(e,1);return}
   hit(e,sp.dmg*z[3]*((EN[e.type].zm||{})[k]||1),k==='head');
   if(k==='head')e.stun=Math.max(e.stun||0,sp.kind==='rock'?BAL.aim.rockHeadStun:BAL.aim.headStun);
   else if(k==='legs'){e.crip=BAL.aim.legsTime;e.stun=Math.max(e.stun||0,BAL.aim.legsStop);S.fx.push({k:'txt',x:e.x,y:e.y-40,t:'ХРОМАЕТ',life:.9,max:.9})}
@@ -469,14 +469,15 @@ function hurtU(T,d){if(T.out||T.w<0)return;if(T.hp==null)T.hp=tmax(T);T.hp-=d;T.
     if(T.id==='hero'&&S.aim){S.aim=null}
     S.fx.push({k:'txt',x:T.x,y:T.y-80,t:UNITS[T.id].name.toUpperCase()+' ВЫБЫЛ ДО КОНЦА ВОЛНЫ',life:1.6,max:1.6});ui()}}
 const hurtTar=d=>hurtU(S.units.tar,d);
-function explode(e){if(e.boomed)return;e.boomed=true;e.dead=true;
-  spr('wave',e.x,e.y,210,.45);S.fx.push({k:'boom',x:e.x,y:e.y,r:60,life:.3,max:.3});
-  for(const o of S.enemies)if(o!==e&&!o.dead&&Math.hypot(o.x-e.x,o.y-e.y)<BAL.bomber.r)hit(o,BAL.bomber.dmg);
+function explode(e,arms){if(e.boomed)return;e.boomed=true;e.dead=true;const B=BAL.bomber,R=arms?B.armsR:B.r,D=arms?B.armsDmg:B.dmg; // arms - подорван выстрелом по рукам: бьет своих сильнее и шире
+  spr('wave',e.x,e.y,arms?260:210,.45);S.fx.push({k:'boom',x:e.x,y:e.y,r:arms?80:60,life:.3,max:.3});
+  for(const o of S.enemies)if(o!==e&&!o.dead&&o.y>0&&Math.hypot(o.x-e.x,o.y-e.y)<R){hit(o,D);
+    if(arms&&!o.dead){o.stun=Math.max(o.stun||0,B.armsStun);S.fx.push({k:'txt',x:o.x,y:o.y-34,t:'-'+D,life:.8,max:.8})}}
   const T=S.units.tar;if(tarOn()&&Math.hypot(T.x-e.x,T.y-e.y)<BAL.bomber.tarR)hurtTar(BAL.bomber.tarDmg);
   if(e.y>=wy(e)-40){S.door-=BAL.bomber.door;S.fx.push({k:'txt',x:e.x,y:WALL-10,t:'ВЗРЫВ',life:.8,max:.8})}}
 function gunShot(e){const T=S.units.tar;let tx,ty;
   if(tarOn()&&Math.hypot(T.x-e.x,T.y-e.y)<BAL.gunner.tarRange){hurtTar(BAL.gunner.dmgTar);tx=T.x;ty=T.y-30}
-  else{const c=IDS.map(id=>S.units[id]).filter(u=>u.w>=0&&!u.out&&!u.field);if(!c.length)return;
+  else{const c=IDS.map(id=>S.units[id]).filter(u=>u.w>=0&&!u.out&&!u.field&&Math.abs(u.x-e.x)<=BAL.gunner.reach);if(!c.length)return; // дальний край стены ему не достать
     const u=c[Math.floor(Math.random()*c.length)];hurtU(u,BAL.gunner.dmg);tx=u.x;ty=u.y-30}
   const f=GUNF.fire,mx=e.x+(e.x>W/2?-1:1)*f[2],my=e.y+EN.gunner.r+4+f[3];e.fire=.14;
   S.fx.push({k:'line',x1:mx,y1:my,x2:tx,y2:ty,life:.12,max:.12,strong:1});spr('shot',mx,my,30,.16)}
