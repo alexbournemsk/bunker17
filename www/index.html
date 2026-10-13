@@ -263,13 +263,13 @@ const BAL={
   crit:[.1,2],            // шанс и множитель крита обычной атаки
   knock:[160,350],        // отброс молота и кувалды
   gunner:{dmg:7,dmgTar:8,rate:1.8,prep:.6,tarRange:420,reach:270}, // стрелок: урон бойцу на стене, урон Таруку, интервал, пауза перед первым выстрелом; reach - бьет только бойцов на стене не дальше этого по горизонтали
-  bomber:{dmg:40,r:95,tarDmg:55,tarR:100,door:18,armsDmg:70,armsR:125,armsStun:.8}, // подрывник: урон соседям, радиус, урон Таруку, урон двери; arms* - подрыв выстрелом по рукам: урон и радиус по своим, оглушение задетых
+  bomber:{dmg:40,r:95,tarDmg:55,tarR:100,door:18,armsDmg:70,armsR:125,armsStun:1.5}, // подрывник: урон соседям, радиус, урон Таруку, урон двери; arms* - подрыв выстрелом по рукам: урон и радиус по своим, оглушение задетых
   aim:{slowmo:.12,        // скорость времени в прицеле
     distPen:15,cap:97,    // штраф шанса на краю радиуса и потолок шанса
     missCd:.5,            // доля перезарядки при промахе
-    headStun:1.5,rockHeadStun:2,rockBodyStun:.5, // оглушение: голова, голова камнем, корпус камнем
-    legsStop:2,legsTime:10,legsSpeed:.22,        // ноги: стоит, потом хромает (всего секунд), скорость хромого
-    armsTime:8,armsMult:.5,
+    headStun:2.5,rockHeadStun:3,rockBodyStun:.8, // оглушение: голова, голова камнем, корпус камнем
+    legsStop:3,legsTime:15,legsSpeed:.22,        // ноги: стоит, потом хромает (всего секунд), скорость хромого
+    armsTime:8,armsMult:.5,armsGunner:14, // руки: время и множитель урона; armsGunner - сколько секунд молчит стрелок
     stunVuln:1.5}                                // оглушенный враг получает больше урона от обычных атак                      // руки: время и множитель урона
 };
 // радиус в клетках: 1 клетка = 80
@@ -339,7 +339,7 @@ function aimFire(z){const u=S.units.hero,e=S.aim.tg,w=wpn(u),sp=w.sp;S.aim=null;
   hit(e,sp.dmg*z[3]*((EN[e.type].zm||{})[k]||1),k==='head');
   if(k==='head')e.stun=Math.max(e.stun||0,sp.kind==='rock'?BAL.aim.rockHeadStun:BAL.aim.headStun);
   else if(k==='legs'){e.crip=BAL.aim.legsTime;e.stun=Math.max(e.stun||0,BAL.aim.legsStop);S.fx.push({k:'txt',x:e.x,y:e.y-40,t:'ХРОМАЕТ',life:.9,max:.9})}
-  else if(k==='arms'){e.disarm=BAL.aim.armsTime;S.fx.push({k:'txt',x:e.x,y:e.y-40,t:e.type==='gunner'?'НЕ СТРЕЛЯЕТ':'ОСЛАБЛЕН',life:.9,max:.9})}
+  else if(k==='arms'){e.disarm=e.type==='gunner'?BAL.aim.armsGunner:BAL.aim.armsTime;S.fx.push({k:'txt',x:e.x,y:e.y-40,t:e.type==='gunner'?'НЕ СТРЕЛЯЕТ':'ОСЛАБЛЕН',life:.9,max:.9})}
   else if(sp.kind==='rock')e.stun=Math.max(e.stun||0,BAL.aim.rockBodyStun);
   spr('hit',e.x,e.y-12,46,.22)}
 function aimTap(p){const u=S.units.hero,A=S.aim;
@@ -367,6 +367,18 @@ const bgc=document.createElement('canvas');bgc.width=W;bgc.height=H;
 
 
 // ===== КАМПАНИЯ: уровни, сцены и порядок истории. Тексты сцен правятся здесь =====
+const WAVES_DUMP=[ // Свалка: пока на основе волн Поселка, подрывников меньше
+  [['rat',2,4,{hp:3}]],
+  [['rat',2,3,{hp:2}],['raider',1,1]],
+  [['raider',2,7],['rat',2,5],['gunner',1,6],['raider',1,1]],
+  [['raider',2,3],['bomber',1,4],['rat',2,2]],
+  [['brute',1,5,{hp:1.38}],['raider',2,3],['gunner',1,4],['rat',2,2]],
+  [['raider',3,1.2],['brute',1,9],['bomber',1,5],['rat',3,1]],                            // подрывник идет следом за громилой: подрыв по рукам
+  [['gunner',1,3],['brute',1,4],['raider',3,2],['bomber',1,2]],                       // стрелок прикрывает громилу
+  [['brute',1,9],['bomber',1,2.5],['gunner',1,4],['rat',4,1],['raider',2,2]], // подрывник выходит, когда громила в середине поля
+  [['gunner',1,2],['brute',1,6],['raider',3,2.5],['bomber',1,4],['brute',1,3],['rat',2,1]],
+  [['boss',1,8],['gunner',1,6],['bomber',1,6],['raider',3,3]]
+];
 const WAVES_PROLOG=[ // черновик: падение стены по сценарию еще не сделано
   [['rat',4,1.5]],
   [['rat',4,1],['raider',2,3]],
@@ -389,7 +401,7 @@ const ux=id=>(LV.geo||GEO_BUNKER).xs[id],uy=id=>HOME_Y+(id==='hero'?-9:0);
 const LEVELS={
   prolog:{name:'Пролог. Бункер 17',waves:WAVES_PROLOG,tips:[],heroW:4,note:'черновик: бой с винтовкой, сценарного падения стены пока нет'},
   village:{name:'Уровень 1. Поселок',waves:WAVES_VILLAGE,tips:WTIP_VILLAGE,heroW:0,earn:1,geo:GEO_VILLAGE,note:'текущие 10 волн, насекомые появятся позже'},
-  dump:{name:'Уровень 2. Свалка',waves:WAVES_VILLAGE,tips:[],heroW:3,camp:1,quiet:1,geo:GEO_DUMP,note:'заглушка: волны Поселка, старт с пистолетом'}
+  dump:{name:'Уровень 2. Свалка',waves:WAVES_DUMP,tips:[],heroW:3,camp:1,quiet:1,geo:GEO_DUMP,note:'черновик волн, старт с пистолетом'}
 };
 // кадр: id и pic - что на картинке (пока заглушка); l - реплики по порядку: [кто, текст]. Кто: имя, 'H' - герой (подставляется позывной), '' - подпись по центру кадра, с '~' в начале - голос из рации. hold - кадр без текста сам листается через столько секунд
 const SCENES={
@@ -458,14 +470,18 @@ function startWave(){
   if(S.over&&!S.win&&S.cp)retry(); // после проигрыша кнопка волны = повторить волну
   if(S.active||S.over||S.wave>=WAVES.length)return;
   S.cp={trapInv:S.trapInv,score:S.score,scrap:S.scrap,door:S.door,wave:S.wave,traps:S.traps.map(t=>({...t})),units:Object.fromEntries(IDS.map(id=>[id,S.units[id].w]))};
-  S.wave++;S.active=true;S.t=0;S.queue=[];S.banner=null;let t=.5;
+  S.wave++;S.active=true;S.t=0;S.queue=[];S.banner=null;S.lane=null;let t=.5;
   if(WTIP[S.wave-1])say(WTIP[S.wave-1]);
   for(const [type,n,gap,o] of WAVES[S.wave-1]){for(let i=0;i<n;i++){S.queue.push({t,type,o});t+=gap}t+=1.5}
   ui();
 }
 function spawn(type,o){
   const e=EN[type],k=(1+BAL.waveHp*(S.wave-1))*((o&&o.hp)||1);
-  const sp=(LV.geo||GEO_BUNKER).spawn,x=type==='boss'?320:sp?sp[0]+Math.random()*(sp[1]-sp[0]):Math.floor(Math.random()*COLS)*C+40+(Math.random()*30-15);
+  const sp=(LV.geo||GEO_BUNKER).spawn;let x=type==='boss'?320:sp?sp[0]+Math.random()*(sp[1]-sp[0]):Math.floor(Math.random()*COLS)*C+40+(Math.random()*30-15);
+  // подрывник бежит по полосе громилы (или вожака), чтобы его можно было подорвать рядом; громила, вышедший позже, встает на полосу подрывника
+  const big=type==='bomber'&&S.enemies.filter(o=>!o.dead&&(o.type==='brute'||o.type==='boss')).sort((a,b)=>a.y-b.y)[0],jit=()=>Math.random()*40-20;
+  if(big)x=Math.max(40,Math.min(W-40,big.x+jit()));
+  else if(type==='bomber'||type==='brute'){if(S.lane!=null)x=Math.max(40,Math.min(W-40,S.lane+jit()));else S.lane=x}
   S.enemies.push({type,gy:GUNY+Math.round(Math.random()*60-30),x,y:-30,hp:e.hp*k,max:e.hp*k,slow:false,acd:0,drop:o&&o.drop});
 }
 function hit(e,dmg,crit){

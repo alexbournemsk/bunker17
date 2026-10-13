@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Симулятор баланса Бункера 17: гоняет игру без отрисовки в headless-браузере, вместо игрока - боты.
-Запуск: python3 tools/sim.py [забегов на бота=150] [путь к html]
+Запуск: python3 tools/sim.py [забегов на бота=150] [путь к html] [уровень: village | dump]
+Без уровня - волны, которые стоят по умолчанию при загрузке страницы (Поселок).
 Боты (играют одним Растом, напарников не нанимают):
   novice - прицел жмет с задержкой, всегда в корпус ближайшему
   mid    - выбирает зону по типу врага
@@ -10,10 +11,11 @@
 import asyncio,sys,json,os
 from playwright.async_api import async_playwright
 N=int(sys.argv[1]) if len(sys.argv)>1 else 150
-SRC=sys.argv[2] if len(sys.argv)>2 else os.path.join(os.path.dirname(__file__),'..','src','bunker17.html')
-HOOK=";window.G={get S(){return S},step,startWave,special,aimFire,ZONES,alive,dist,wpn,UNITS,EN,BAL,TRAP,DUR,nxt,canBuild,zChance,aimR,reset,WAVES,WALL,C,ui};"
+SRC=sys.argv[2] if len(sys.argv)>2 and sys.argv[2] else os.path.join(os.path.dirname(__file__),'..','src','bunker17.html')
+LEVEL=sys.argv[3] if len(sys.argv)>3 else ''
+HOOK=";window.G={get S(){return S},step,startWave,special,aimFire,ZONES,alive,dist,wpn,UNITS,EN,BAL,TRAP,DUR,nxt,canBuild,zChance,aimR,reset,WAVES,WALL,C,ui,startLevel};"
 JS=r"""
-(N)=>{const {step,startWave,special,aimFire,ZONES,alive,dist,wpn,UNITS,EN,BAL,TRAP,DUR,nxt,canBuild,zChance,aimR,reset,WAVES,WALL,C}=G;
+([N,LEVEL])=>{const {step,startWave,special,aimFire,ZONES,alive,dist,wpn,UNITS,EN,BAL,TRAP,DUR,nxt,canBuild,zChance,aimR,reset,WAVES,WALL,C}=G;
 const Z=k=>ZONES.find(z=>z[0]===k),DT=1/60;
 const BOTS={
  novice:{delay:1.6,zone:()=>'body',pick:(u,l)=>l.sort((a,b)=>dist(u,a)-dist(u,b))[0],traps:0},
@@ -27,7 +29,7 @@ const BOTS={
     return e.type==='rat'?'body':e.hp<wpn(S.units.hero).sp.dmg?'body':'head'},
   pick:(u,l)=>l.sort((a,b)=>thr(b)-thr(a))[0]}};
 const thr=e=>(e.type==='gunner'&&e.y>=e.gy&&!(e.disarm>1)&&G.S.units.hero.hp<85?400:0)+(e.type==='bomber'?500:0)+(e.type==='brute'&&!(e.crip>1)?250:0)+e.y;
-function run(bot){reset();const S=G.S;S.speed=0;const B=BOTS[bot],h=S.units.hero;let ready=0,stat={wave:0,win:false,door:[],hp:[]};
+function run(bot){if(LEVEL)G.startLevel(LEVEL);else reset();const S=G.S;S.speed=0;const B=BOTS[bot],h=S.units.hero;let ready=0,stat={wave:0,win:false,door:[],hp:[]};
   while(!S.over){
     // между волнами: покупки
     const SHOP=false; // в Поселке магазина нет: покупки только в лавке на Свалке
@@ -60,9 +62,9 @@ async def main():
         tmp='/tmp/b17sim.html';open(tmp,'w',encoding='utf8').write('<!doctype html><meta charset="utf-8"><body>'+h+'</body>')
         errs=[];pg.on('pageerror',lambda e:errs.append(str(e)))
         await pg.goto('file://'+tmp);await pg.wait_for_timeout(400)
-        r=await pg.evaluate(JS,N);await b.close()
+        r=await pg.evaluate(JS,[N,LEVEL]);await b.close()
         W=len(r['novice']['pass'])
-        print(f'забегов на бота: {N}\n')
+        print(f'забегов на бота: {N}'+(f', уровень {LEVEL}' if LEVEL else '')+'\n')
         print('волна        '+''.join(f'{w+1:>5}' for w in range(W))+'   победа  медиана проигрыша / доля проигрышей по здоровью')
         for bot in r:
             d=r[bot]
