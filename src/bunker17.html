@@ -478,7 +478,7 @@ let S;
 function reset(){
   S={score:0,cheat:false,scrap:BAL.scrap0,door:100,wave:0,active:false,t:0,queue:[],enemies:[],traps:[],fx:[],
      selU:'hero',pick:false,sel:null,hover:null,speed:1,paused:false,over:false,units:{},talk:[],spk:null,fired:{},xtra:{}};
-  if(LV.vik)S.xtra.vik={x:ux('bor'),y:uy('bor'),img:'bor0',a:1}; // Виктор на Свалке: фигура без боя
+  if(LV.vik)S.xtra.vik={x:ux('bor'),y:uy('bor'),img:'bor0',a:1,mode:'wall'}; // Виктор на Свалке: фигура без боя; после первой реплики спускается к воротам
   for(const id of IDS)S.units[id]={id,x:ux(id),y:uy(id),w:id==='hero'?(LV.heroW||0):-1,cd:0,scd:0,ang:-Math.PI/2};
   $('over').hidden=true;ui();
 }
@@ -742,17 +742,29 @@ function talkStep(dt){
   if(L&&S.active)L.forEach((l,i)=>{if(S.fired[i]||l.w!==S.wave||S.t<l.at)return;S.fired[i]=1;
     if(l.ev==='tar'){if(S.units.tar.w<0)S.xtra.tar={x:ux('tar'),y:uy('tar'),img:'tar0',a:0}}
     else S.talk.push(l)});
-  if(S.spk&&(S.spk.life-=dt)<=0)S.spk=null;
+  const V=S.xtra.vik;
+  if(S.spk&&(S.spk.life-=dt)<=0){if(S.spk.who==='vik'&&V&&V.mode==='wall')V.mode='walk';S.spk=null}
+  if(V&&V.mode==='wall'&&S.wave>1)V.mode='walk';
+  if(V)vikMove(V,dt);
   if(!S.spk&&S.talk.length){const l=S.talk.shift(),d=Math.max(2.4,Math.min(5,1.6+l.t.length*.055));
     if(l.who[0]==='~'){sayRadio(l.who.slice(1),l.t);S.spk={r:1,life:d}}
     else if(spkPos(l.who))S.spk={who:l.who,t:l.t,life:d,max:d}}
-  for(const k in S.xtra){const x=S.xtra[k];if(x.a<1)x.a=Math.min(1,x.a+dt*2)}
-  if(LV.vik&&S.active&&!S.over){S.vrt=(S.vrt||0)+dt;if(S.vrt>=TALK.rep[0]){S.vrt=0; /* Виктор латает ворота */
+  for(const k in S.xtra){const x=S.xtra[k];if(x.a<1&&x.mode!=='down')x.a=Math.min(1,x.a+dt*2)}
+  if(LV.vik&&V&&V.mode==='fix'&&S.active&&!S.over){S.vrt=(S.vrt||0)+dt;if(S.vrt>=TALK.rep[0]){S.vrt=0; /* Виктор латает ворота */
     if(S.door<100){S.door=Math.min(100,S.door+TALK.rep[1]);const gt=(LV.geo||GEO_BUNKER).gate;S.fx.push({k:'txt',x:gt[0],y:WALL+40,t:'+'+TALK.rep[1]+' ВИКТОР',life:1.1,max:1.1})}}}
   if(LV.tarHelp&&S.xtra.tar&&!S.xtra.tar.hit){const b=S.enemies.find(e=>!e.dead&&(e.type==='boss'||e.type==='brute')&&e.y>260); /* Тарук один раз бьет большого */
     if(b){S.xtra.tar.hit=1;const T=S.xtra.tar;hit(b,b.max*TALK.tarHit);if(!b.dead){b.stun=Math.max(b.stun||0,2);b.y=Math.max(20,b.y-90)}
       spr('wave',b.x,b.y,220,.45);S.fx.push({k:'txt',x:b.x,y:b.y-60,t:'МОЛОТ ТАРУКА',life:1.2,max:1.2});S.fx.push({k:'line',x1:T.x,y1:T.y-40,x2:b.x,y2:b.y,life:.25,max:.25,strong:1})}}}
+// Виктор уходит по стене к спуску, исчезает за стеной и появляется у ворот
+function vikMove(V,dt){const gt=(LV.geo||GEO_BUNKER).gate,sx=gt[0]+90;
+  if(V.mode==='walk'){const d=sx-V.x,st=110*dt;if(Math.abs(d)<=st){V.x=sx;V.mode='down'}else{V.x+=Math.sign(d)*st;V.wd=(V.wd||0)+st}}
+  else if(V.mode==='down'){V.a-=dt*2.5;if(V.a<=0){V.a=0;V.x=gt[0]+64;V.y=gt[1]+86;V.mode='fix';S.vrt=0}}}
 function drawXtra(){for(const k in S.xtra){const x=S.xtra[k],hi=IMG[x.img];
+  if(k==='vik'&&x.mode==='walk'&&S.units.bor.w<0){const uw=UW.bor0,wim=IMG.w_bor0;if(uw&&ready(wim)){const fi=Math.floor((x.wd||0)/22)%4; /* идет по стене */
+    g.save();g.fillStyle='rgba(0,0,0,.35)';g.beginPath();g.ellipse(x.x,x.y+20,20,7,0,0,7);g.fill();g.translate(Math.round(x.x),Math.round(x.y+24));
+    g.drawImage(wim,fi*uw[0],0,uw[0],wim.height,-uw[1],-uw[2],uw[0],wim.height);g.restore();continue}}
+  if(k==='vik'&&x.mode==='fix'&&S.active&&Math.random()<.35){g.fillStyle=Math.random()<.5?'#ffd98a':'#f2a93b'; /* искры от починки */
+    for(let i=0;i<3;i++)g.fillRect(Math.round(x.x-22+Math.random()*14),Math.round(x.y-34+Math.random()*16),2,2)}
   if((k==='vik'&&S.units.bor.w>=0)||(k==='tar'&&S.units.tar.w>=0)||!ready(hi))continue;
   g.save();g.globalAlpha=x.a;g.fillStyle='rgba(0,0,0,.35)';g.beginPath();g.ellipse(x.x,x.y+20,20,7,0,0,7);g.fill();
   g.translate(Math.round(x.x),Math.round(x.y+24));g.drawImage(hi,-Math.round(hi.width*.42),-hi.height);g.restore()}}
