@@ -156,6 +156,7 @@ button.go{background:var(--rust);border-color:var(--rust);font-family:var(--disp
 .m #squad .ab .row img{width:48px;height:48px}
 .m #squad .ab[data-cd]:not([data-cd=""])::after{content:attr(data-cd);position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(20,17,13,.72);font:400 20px var(--display);color:var(--fg)}
 #next.big{display:flex;align-items:center;justify-content:center;text-align:center;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;width:300px;height:67px;min-height:0;padding:0 0 2px;border:0;background-color:transparent;background-size:100% 100%;background-repeat:no-repeat;image-rendering:pixelated;color:#2a1c08;font-family:var(--display);font-size:19px;letter-spacing:.06em;text-transform:uppercase}#next.big:active{padding:3px 0 0}
+#vikBtn{position:absolute;top:72px;right:24px;z-index:3;width:56px;min-height:0;height:auto;padding:2px 0 3px;background:#17130e;border:2px solid var(--amber);display:flex;flex-direction:column;align-items:center;gap:1px}#vikBtn[hidden]{display:none}#vikBtn img{width:40px;height:40px;image-rendering:pixelated}#vikBtn b{font:400 10px var(--mono);color:var(--fg);white-space:nowrap}#vikBtn:disabled{opacity:.5}
 #mShop{position:absolute;top:4px;right:24px;z-index:3;width:56px;height:56px;min-height:56px;padding:0;border:0;background:none}#mShop{background:#17130e;border:2px solid var(--amber)}#mShop img{width:48px;height:auto;display:block;margin:auto;image-rendering:pixelated}#mShop b{position:absolute;right:2px;bottom:0;font:400 14px var(--display);color:var(--amber)}#mShop.on{outline:2px solid var(--amber)}
 .m #bar{position:fixed;left:16px;right:16px;bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:5;display:block}
 .m #bar .sp{display:none}
@@ -749,13 +750,14 @@ function talkStep(dt){
     if(l.ev==='tar'){if(S.units.tar.w<0)S.xtra.tar={x:ux('tar'),y:uy('tar'),img:'tar0',a:0}}
     else S.talk.push(l)});
   const V=S.xtra.vik;
-  if(S.spk&&(S.spk.life-=dt)<=0){if(S.spk.who==='vik'&&V&&V.mode==='wall')V.mode='walk';S.spk=null}
-  if(V&&V.mode==='wall'&&S.wave>1)V.mode='walk';
+  if(S.spk&&(S.spk.life-=dt)<=0){if(S.spk.who==='vik'&&V&&V.mode==='wall'&&V.go){V.go=0;V.mode='walk';ui()}S.spk=null}
+  if(V&&V.mode==='wall'&&!V.told&&S.active&&S.door<100){V.told=1;V.go=1;S.talk.push({who:'vik',t:VS.say})} // первые повреждения ворот: Виктор сам идет чинить
+  if(V&&V.mode==='wall')vikShoot(V,dt);
   if(V)vikMove(V,dt);
   if(!S.spk&&S.talk.length){const l=S.talk.shift(),d=Math.max(2.4,Math.min(5,1.6+l.t.length*.055));
     if(l.who[0]==='~'){sayRadio(l.who.slice(1),l.t);S.spk={r:1,life:d}}
     else if(spkPos(l.who))S.spk={who:l.who,t:l.t,life:d,max:d}}
-  for(const k in S.xtra){const x=S.xtra[k];if(x.a<1&&x.mode!=='down')x.a=Math.min(1,x.a+dt*2)}
+  for(const k in S.xtra){const x=S.xtra[k];if(x.a<1&&x.mode!=='down'&&x.mode!=='up')x.a=Math.min(1,x.a+dt*2)}
   if(LV.vik&&V&&V.mode==='fix'&&V.sub==='work'&&S.active&&!S.over){S.vrt=(S.vrt||0)+dt;if(S.vrt>=TALK.rep[0]){S.vrt=0; /* Виктор латает ворота */
     if(S.door<100){S.door=Math.min(100,S.door+TALK.rep[1]);const gt=(LV.geo||GEO_BUNKER).gate;S.fx.push({k:'txt',x:gt[0],y:WALL+40,t:'+'+TALK.rep[1]+' ВИКТОР',life:1.1,max:1.1})}}}
   if(LV.tarHelp&&S.xtra.tar&&!S.xtra.tar.hit){const b=S.enemies.find(e=>!e.dead&&(e.type==='boss'||e.type==='brute')&&e.y>260); /* Тарук один раз бьет большого */
@@ -763,7 +765,18 @@ function talkStep(dt){
       spr('wave',b.x,b.y,220,.45);S.fx.push({k:'txt',x:b.x,y:b.y-60,t:'МОЛОТ ТАРУКА',life:1.2,max:1.2});S.fx.push({k:'line',x1:T.x,y1:T.y-40,x2:b.x,y2:b.y,life:.25,max:.25,strong:1})}}}
 // Виктор уходит по стене к спуску, исчезает за стеной и появляется у ворот
 const VR={key:'viktorRepair',fw:74,fh:68,dur:[.12,.12,.14,.09,.2],hit:4,spark:[11,8],spots:[-65,-20,25,64],stay:[4,7],walk:60}; // заплатка из кадров вырезана, искры у бойка молотка; spots - места у ворот (от центра ворот), stay - сколько секунд стучит на одном месте // ремонт Виктора: 5 кадров по кругу, на кадре 5 удар молотком по листу - искры в точке spark (от левого верхнего угла кадра)
+const VS={dmg:12,rate:1.1,r:300,say:'Ворота побили. Пошел чинить. Если что - зови'}; // Виктор на стене: сам стреляет из пистолета по ближнему врагу
+function vikShoot(V,dt){if(!S.active||S.over)return;V.cd=(V.cd||0)-dt;if(V.cd>0)return;
+  const e=alive().filter(e=>e.y>40&&Math.hypot(e.x-V.x,e.y-V.y)<VS.r).sort((a,b)=>b.y-a.y)[0];if(!e)return;V.cd=VS.rate;
+  const mx=V.x+10,my=V.y-48;hit(e,VS.dmg);S.fx.push({k:'line',x1:mx,y1:my,x2:e.x,y2:e.y-10,life:.12,max:.12});spr('shot',mx,my,22,.14)}
+function vikPos(){const b=$('vikBtn'),c=$('cv'),st=$('stage');if(!b||b.hidden)return; /* кнопка Виктора - в правом верхнем углу поля, под кнопкой ловушки */
+  if($('mShop')){b.style.right='24px';b.style.top='68px';return} /* телефон: под кнопкой ловушки */
+  b.style.right=Math.max(8,st.clientWidth-c.offsetLeft-c.offsetWidth+8)+'px';b.style.top=(c.offsetTop+8)+'px'}
+function vikToggle(){const V=S.xtra&&S.xtra.vik;if(!V)return; // кнопка: со стены - чинить ворота, от ворот - обратно на стену
+  if(V.mode==='wall'){V.told=1;V.go=0;V.mode='walk'}else if(V.mode==='fix'&&V.sub!=='move'){V.mode='up';V.sub=null}ui()}
 function vikMove(V,dt){const gt=(LV.geo||GEO_BUNKER).gate,sx=gt[0]+90;
+  if(V.mode==='up'){V.a-=dt*2.5;if(V.a<=0){V.a=0;V.x=sx;V.y=uy('bor');V.mode='back'}return}
+  if(V.mode==='back'){if(V.a<1)V.a=Math.min(1,V.a+dt*2.5);const tx=ux('bor'),d=tx-V.x,st=110*dt;if(Math.abs(d)<=st){V.x=tx;V.mode='wall';ui()}else{V.x+=Math.sign(d)*st;V.wd=(V.wd||0)+st}return}
   if(V.mode==='fix'){const need=S.active&&!S.over&&S.door<100; /* у ворот: чинит, только если ворота повреждены; время от времени переходит на другое место */
     if(!need){if(V.sub==='work')V.sub='idle';V.fi=0}
     else if(!V.sub||V.sub==='idle'){V.sub='work';V.next=VR.stay[0]+Math.random()*(VR.stay[1]-VR.stay[0])}
@@ -772,9 +785,9 @@ function vikMove(V,dt){const gt=(LV.geo||GEO_BUNKER).gate,sx=gt[0]+90;
       if((V.next-=dt)<=0){const xs=VR.spots.map(o=>gt[0]+o).filter(x=>Math.abs(x-V.x)>20);V.tx=xs[Math.floor(Math.random()*xs.length)];V.sub='move'}}
     else if(V.sub==='move'){const d=V.tx-V.x,st=VR.walk*dt;if(Math.abs(d)<=st){V.x=V.tx;V.sub=need?'work':'idle';V.next=VR.stay[0]+Math.random()*(VR.stay[1]-VR.stay[0]);V.rt=0}else{V.x+=Math.sign(d)*st;V.wd=(V.wd||0)+st}}}
   if(V.mode==='walk'){const d=sx-V.x,st=110*dt;if(Math.abs(d)<=st){V.x=sx;V.mode='down'}else{V.x+=Math.sign(d)*st;V.wd=(V.wd||0)+st}}
-  else if(V.mode==='down'){V.a-=dt*2.5;if(V.a<=0){V.a=0;V.x=gt[0]+64;V.y=gt[1]+78;V.mode='fix';S.vrt=0}}}
+  else if(V.mode==='down'){V.a-=dt*2.5;if(V.a<=0){V.a=0;V.x=gt[0]+64;V.y=gt[1]+78;V.mode='fix';V.sub=null;S.vrt=0;ui()}}}
 function drawXtra(){for(const k in S.xtra){const x=S.xtra[k],hi=IMG[x.img];
-  if(k==='vik'&&(x.mode==='walk'||x.mode==='fix'&&x.sub==='move')&&S.units.bor.w<0){const uw=UW.bor0,wim=IMG.w_bor0;if(uw&&ready(wim)){const fi=Math.floor((x.wd||0)/22)%4; /* идет по стене */
+  if(k==='vik'&&(x.mode==='walk'||x.mode==='back'||x.mode==='fix'&&x.sub==='move')&&S.units.bor.w<0){const uw=UW.bor0,wim=IMG.w_bor0;if(uw&&ready(wim)){const fi=Math.floor((x.wd||0)/22)%4; /* идет по стене */
     g.save();g.fillStyle='rgba(0,0,0,.35)';g.beginPath();g.ellipse(x.x,x.y+20,20,7,0,0,7);g.fill();g.translate(Math.round(x.x),Math.round(x.y+24));
     g.drawImage(wim,fi*uw[0],0,uw[0],wim.height,-uw[1],-uw[2],uw[0],wim.height);g.restore();continue}}
   if(k==='vik'&&x.mode==='fix'&&x.sub==='work'&&S.units.bor.w<0&&ready(IMG[VR.key])){g.save();g.globalAlpha=x.a; /* ремонт: лента 1:1, опора - середина низа кадра */
@@ -1006,6 +1019,7 @@ const sq={};
 for(const id of IDS){const b=document.createElement('button');b.className='sq';sq[id]=b;$('squad').appendChild(b);
   b.onclick=()=>{if(S.units[id].w<0)return;if(S.selU===id)S.units[id].wx=null;S.selU=id;S.pick=false;S.shop=false;ui()}}
 const tb=document.createElement('button');$('build').appendChild(tb);
+{const vb=document.createElement('button');vb.id='vikBtn';vb.type='button';vb.hidden=true;vb.innerHTML='<img alt="" src="'+ART.pt_bor+'"><b>Чинить</b>';vb.onclick=vikToggle;$('stage').appendChild(vb);addEventListener('resize',vikPos)} // кнопка Виктора
 tb.innerHTML='<span class="row"><img alt="" style="height:auto" src="'+ART.trap+'"><span>Ловушка<small>замедляет, ранит, изнашивается</small></span><span class="nx"><b>'+TRAP+'</b></span></span>';
 tb.onclick=()=>{if(!(S.trapInv>0)&&!S.pick){say('Ловушек нет. Они продаются в лавке Виктора.');return}S.pick=!S.pick;S.sel=null;ui()};
 $('sell').onclick=()=>{if(!S.sel)return;S.scrap+=sellTrap(S.sel);S.traps=S.traps.filter(x=>x!==S.sel);S.sel=null;ui()};
@@ -1061,6 +1075,9 @@ if(M){
 }
 let last={};
 function ui(){
+  {const b=$('vikBtn'),V=S.xtra&&S.xtra.vik,show=!!(V&&LV.vik&&S.units.bor.w<0&&!S.over); /* кнопка Виктора: видна на уровне, где он есть */
+    if(b){b.hidden=!show;if(show){const busy=!(V.mode==='wall'||V.mode==='fix'&&V.sub!=='move');b.disabled=busy;b.querySelector('b').textContent=V.mode==='wall'||V.mode==='walk'?'Чинить':'На стену';
+      b.setAttribute('aria-label',V.mode==='wall'?'Виктор: чинить ворота':'Виктор: вернуться на стену');vikPos()}}}
   for(const id of IDS){const u=S.units[id],d=UNITS[id],ni=nxt(u),nw=d.weapons[ni],b=buy[id];
     b.disabled=!nw;
     const cw=u.w>=0?wpn(u):null,im=i=>'<img alt="" src="'+ART['shop'+(id==='hero'?'':id)+i]+'">';
