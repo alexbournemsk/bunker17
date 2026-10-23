@@ -303,7 +303,7 @@ const WK={brute:{key:'bruteWalk',fw:118,fh:97,n:6,k:1,step:5,ax:59,ox:0,oy:0},
   boss:{key:'bossWalk',fw:182,fh:133,n:6,k:1,step:5,ox:10,oy:3}}; // вожак: 250 мс на кадр при скорости 20 = 5 px пути; ox/oy - сдвиг ленты, чтобы фигура стояла там же, где в атаке
 const BAS={brute:{key:'bruteAttack',fw:114,fh:117,dur:[.12,.11,.22,.07,.22,.15,.15],hit:4,ox:0,oy:0}, // громила: 7 кадров, урон на кадре 5 (труба у земли)
   boss:{key:'bossAttack',fw:166,fh:156,dur:[.292,.25,.375,.375,.167,.125,.208,.5,.5,.375,.375],hit:6,ox:0,oy:8}}; // вожак: 11 кадров, урон на кадре 7 (молот в земле); ступни на 8 px выше низа кадра
-for(const k in BAS){const A=BAS[k];A.tot=A.dur.reduce((a,b)=>a+b,0);A.hitT=A.dur.slice(0,A.hit).reduce((a,b)=>a+b,0);A.mul=k==='boss'?A.tot:1} // вожак бьет раз в 3.5 с: урон за удар умножен, чтобы урон в секунду остался прежним
+for(const k in BAS){const A=BAS[k];A.tot=A.dur.reduce((a,b)=>a+b,0);A.hitT=A.dur.slice(0,A.hit).reduce((a,b)=>a+b,0);A.mul=k==='boss'?30/25:1} // вожак бьет раз в 3.5 с по 30 (atk 25 x 1.2): ворота падают с 4 ударов, около 12 с
 const bruteAnim=e=>!!BAS[e.type]&&ready(IMG[BAS[e.type].key]);
 const amul=e=>bruteAnim(e)?BAS[e.type].mul:1;
 function swing(e,dt,onHit){const A=BAS[e.type];if(e.at==null){e.at=0;e.hd=0}e.at+=dt;if(!e.hd&&e.at>=A.hitT){e.hd=1;onHit()}if(e.at>=A.tot){e.at=0;e.hd=0}} // покадровый удар: урон в момент кадра удара
