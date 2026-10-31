@@ -866,7 +866,7 @@ function draw(){
       const nf=FR[e.type]||1,fw=ei.width/nf,bwi=e.type==='bomber'&&IMG.bomberWalk;
       if(bwi&&ready(bwi)){ /* подрывник: свои 4 кадра, без программного покачивания и без зеркала; кадр привязан к пройденному пути, чтобы при замедлении и остановке ноги не бежали впустую */
         const dm=e.bwx==null?0:Math.hypot(e.x-e.bwx,e.y-e.bwy);e.bwx=e.x;e.bwy=e.y;
-        if(e.bwd==null)e.bwd=BW.stand*BW.step;e.bwd+=dm;e.bws=dm>.05?0:(e.bws||0)+1;
+        if(e.bwd==null)e.bwd=BW.stand*BW.step;e.bwd+=dm;e.bws=atWall||e.stun>0?99:0; /* стоит или идет - по состоянию, а не по сдвигу за кадр: в замедлении прицела шаг логики бывает раз в несколько кадров */
         const fi=atWall||e.stun>0||e.bws>4?BW.stand:Math.floor(e.bwd/BW.step)%4;
         const k=BW.k,dw=Math.round(BW.fw*k),dh=Math.round(BW.fh*k),x0=-Math.round(dw/2);
         if(BWL.arm){g.drawImage(BWL.body,fi*BW.fw,0,BW.fw,BW.fh,x0,-dh,dw,dh); /* тело, затем рука с динамитом: качается в такт шагу, стоя - слегка по времени */
@@ -875,7 +875,7 @@ function draw(){
         else g.drawImage(bwi,fi*BW.fw,0,BW.fw,BW.fh,x0,-dh,dw,dh)}
       else if(WK[e.type]&&ready(IMG[WK[e.type].key])){const C=WK[e.type],im=IMG[C.key],BA=BAS[e.type],ai=IMG[BA.key]; /* громила: ходьба 6 кадров по пройденному пути, атака 7 кадров по времени; 1:1, опора - середина низа кадра */
         const dm=e.bwx==null?0:Math.hypot(e.x-e.bwx,e.y-e.bwy);e.bwx=e.x;e.bwy=e.y;
-        if(e.bwd==null)e.bwd=0;e.bwd+=dm;e.bws=dm>.02?0:(e.bws||0)+1;
+        if(e.bwd==null)e.bwd=0;e.bwd+=dm;e.bws=atWall||e.stun>0||e.fight?99:0; /* стоит или идет - по состоянию, иначе в замедлении прицела мелькает стойка */
         if(BR&&e.at!=null){let t=e.at,fi=0;while(fi<BA.dur.length-1&&t>=BA.dur[fi]){t-=BA.dur[fi];fi++}g.drawImage(ai,fi*BA.fw,0,BA.fw,BA.fh,BA.ox-Math.round(BA.fw/2),BA.oy-BA.fh,BA.fw,BA.fh)}
         else if(BR&&(e.stun>0||e.bws>6))g.drawImage(ai,0,0,BA.fw,BA.fh,BA.ox-Math.round(BA.fw/2),BA.oy-BA.fh,BA.fw,BA.fh); /* стоит: стойка из первого кадра атаки */
         else{const fi=Math.floor(e.bwd/C.step)%C.n;g.drawImage(im,fi*C.fw,0,C.fw,C.fh,C.ox-Math.round(C.fw/2),C.oy-C.fh,C.fw,C.fh)}}
